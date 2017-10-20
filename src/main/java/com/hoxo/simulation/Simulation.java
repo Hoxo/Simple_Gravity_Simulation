@@ -6,12 +6,8 @@ import com.hoxo.geometric.Vector2D;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Vector;
 import java.util.stream.Collectors;
 
-/**
- * Created by Hoxton on 06.09.2017.
- */
 public class Simulation {
     private LinkedList<GravityObject> objects = new LinkedList<>();
     private Trail path;
@@ -19,7 +15,12 @@ public class Simulation {
     private volatile boolean col, acc;
     private Collection<GravityObject> destroyed = new LinkedList<>();
 
-    private static final double EPS = 2;
+    private static final double     EPS = 2;
+    private static final double     BOUNCE_SCALE = 0.85;
+    private static final int        LIMIT_RANGE = 10000;
+    private static final int        CALCULATED_PATH_LENGTH = 10000;
+
+
 
     public Simulation(GravityObjectFactory factory) {
         this.factory = factory;
@@ -63,8 +64,7 @@ public class Simulation {
                     }
                 }
             }
-        for(GravityObject object : destroyed)
-            objects.remove(object);
+        objects.removeAll(destroyed);
         destroyed.clear();
     }
 
@@ -88,17 +88,14 @@ public class Simulation {
     }
 
     private boolean isCollided(GravityObject o1,GravityObject o2) {
-        if (Math.abs(Helper.range(o1,o2) - (o1.radius + o2.radius)) < EPS)
-            return true;
-        else
-            return false;
+        return Math.abs(Helper.range(o1, o2) - (o1.radius + o2.radius)) < EPS;
     }
 
     public void calculatePath(double x, double y, Vector2D v, int r, double delta) {
         List<GravityObject> staticObjects =
                 objects.stream().filter(object -> object.isStatic).collect(Collectors.toList());
         GravityObject o1 = factory.gravityObject(x,y,v,r);
-        int size = 10000;
+        int size = CALCULATED_PATH_LENGTH;
         Trail trail = new Trail(size);
         for (int i = 0; i < size; i++) {
             if (isCollided(o1))
@@ -152,9 +149,9 @@ public class Simulation {
                 (m1 + m2) + v2*Math.sin(theta2 - phi)*Math.cos(phi + Math.PI/2);
         o2.velocity.y = (v2 * Math.cos(theta2 - phi) * (m2 - m1) + 2 * m1 * v1 * Math.cos(theta1 - phi))*Math.sin(phi)/
                 (m1 + m2) + v2*Math.sin(theta2 - phi)*Math.sin(phi + Math.PI/2);
-        double scale = 0.95;
-        o1.velocity.scaleLength(scale);
-        o2.velocity.scaleLength(scale);
+
+        o1.velocity.scaleLength(BOUNCE_SCALE);
+        o2.velocity.scaleLength(BOUNCE_SCALE);
     }
 
     private void updateVelocityVectors(double delta) {
@@ -165,6 +162,7 @@ public class Simulation {
     }
 
     public void tick(double delta) {
+        destroyLostObjects();
         if (col)
             checkForCollisions();
         if (acc)
@@ -173,12 +171,12 @@ public class Simulation {
         move(delta);
     }
 
-    private boolean isIntersect(GravityObject o1, GravityObject o2) {
-        if (Helper.range(o1,o2) < o1.radius + o2.radius + EPS)
-            return true;
-        else
-            return false;
+    private void destroyLostObjects() {
+        objects.removeIf(object -> object.point.distance(0,0) > LIMIT_RANGE);
+    }
 
+    private boolean isIntersect(GravityObject o1, GravityObject o2) {
+        return Helper.range(o1, o2) < o1.radius + o2.radius;
     }
 
     private void move(double delta) {

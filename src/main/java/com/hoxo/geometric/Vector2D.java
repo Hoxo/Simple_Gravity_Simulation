@@ -33,7 +33,7 @@ public class Vector2D implements Serializable {
     }
 
     public strictfp double angleWith(Vector2D vector) {
-        return Math.acos((x*vector.x + y*vector.y)/(length()*vector.length()));
+        return Math.abs(getAngle() - vector.getAngle());
     }
 
     public double length() {

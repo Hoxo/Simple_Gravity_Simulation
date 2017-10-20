@@ -12,8 +12,6 @@ import javafx.geometry.Point2D;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.*;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
@@ -22,10 +20,6 @@ import javafx.util.StringConverter;
 import java.io.FileInputStream;
 import java.io.ObjectInputStream;
 
-
-/**
- * Created by Hoxton on 07.09.2017.
- */
 public class Controller {
 
     @FXML
@@ -55,7 +49,7 @@ public class Controller {
     @FXML
     private Slider scaleSlider;
 
-    private static final double SCALE = 0.02;
+    private static final double VELOCITY_SCALE = 0.02;
 
     private MouseEventAdapter mouseEventAdapter;
     private volatile SimpleDoubleProperty delta;
@@ -91,8 +85,8 @@ public class Controller {
         }
 
         private Vector2D getVelocityVector(MouseEvent event) {
-            return new Vector2D(SCALE * (point.getX() - event.getX() * scaleSlider.getValue()),
-                        SCALE * (point.getY() - event.getY()*scaleSlider.getValue()));
+            return new Vector2D(VELOCITY_SCALE * (point.getX() - event.getX() * scaleSlider.getValue()),
+                        VELOCITY_SCALE * (point.getY() - event.getY()*scaleSlider.getValue()));
 
         }
     }
@@ -117,8 +111,8 @@ public class Controller {
         deltaSlider.setMin(0);
         deltaSlider.setMax(4);
         deltaSlider.setBlockIncrement(0.05);
-        deltaSlider.setValue(1);
-        delta.bind(deltaSlider.valueProperty());
+        deltaSlider.setValue(3);
+        delta.bind(deltaSlider.valueProperty().subtract(4).negate());
         canvas.setOnKeyTyped(event -> {
             if (event.getCode().equals(KeyCode.S)){
                 if (isOn.get())
@@ -161,13 +155,14 @@ public class Controller {
             for(;;){
                 SnapShot snapShot = (SnapShot) inputStream.readObject();
                 MenuItem item = new MenuItem("#" + (c+1) + " (" + snapShot.name + ")" );
-                item.setOnAction(event -> {
-                    simulation.restoreSnapShot(snapShot);
-                });
+                item.setOnAction(event -> simulation.restoreSnapShot(snapShot));
                 templates.getItems().add(item);
                 c++;
             }
-        } catch (Exception e) {}
+        } catch (Exception e) {
+
+        }
+
     }
 
     @FXML
@@ -200,7 +195,6 @@ public class Controller {
                 if (path != null)
                     drawTrail(path);
             }
-            int radius = obj.radius;
             double scaleValue = scaleSlider.getValue();
             Point point = new Point(obj.point.x / scaleValue , obj.point.y / scaleValue);
             double currentRadius = obj.radius / scaleValue;
@@ -248,8 +242,9 @@ public class Controller {
         try {
             int size = Integer.parseInt(trailLength.getText());
             simulation.changeTrailsLength(size);
-        } catch (Exception e) {}
-        System.gc();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @FXML

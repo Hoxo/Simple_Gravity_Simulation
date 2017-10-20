@@ -15,7 +15,6 @@ class Helper {
 
     public static double calculateAcceleration(GravityObject from, GravityObject to) {
         double R = range(from, to);
-//        R = R >= 4 ? R : 4;
         double M = to.mass;
         double a = (G * M)/(R*R);
         return a;

@@ -4,14 +4,10 @@ import com.hoxo.geometric.Point;
 import com.hoxo.geometric.Vector2D;
 
 import java.io.Serializable;
-import java.text.Format;
 import java.util.Formatter;
 import java.util.Locale;
 
 
-/**
- * Created by Hoxton on 06.09.2017.
- */
 public class GravityObject implements Cloneable, Serializable {
     public Point point;
     public Vector2D velocity, acc;
@@ -53,7 +49,7 @@ public class GravityObject implements Cloneable, Serializable {
     @Override
     public String toString() {
         Formatter formatter = new Formatter(Locale.ENGLISH);
-        String result = formatter.format("Gravity object\n[%.1f, %.1f]\nVelocity: [%.3f, %.3f]\nAcceleration: [%.3f, %.3f]",
+        String result = formatter.format("Gravity object [% .1f, % .1f] Velocity: [% .3f, % .3f] Acceleration: [% .6f, % .6f]",
                 point.x,point.y,velocity.x,velocity.y,acc.x,acc.y).toString();
         return result;
     }
