@@ -4,19 +4,19 @@ import java.io.Serializable;
 import java.util.LinkedList;
 
 public class SnapShot implements Serializable {
-    private final LinkedList<GravityObject> objects;
+    private final LinkedList<SimpleGravityObject> objects;
     public String name;
-    public SnapShot(LinkedList<GravityObject> o, String name) {
+    public SnapShot(LinkedList<SimpleGravityObject> o, String name) {
         objects = new LinkedList<>();
-        for (GravityObject go : o) {
+        for (SimpleGravityObject go : o) {
             try {
-                objects.add((GravityObject) go.clone());
+                objects.add((SimpleGravityObject) go.clone());
             } catch (Exception e) {}
         }
         this.name = name;
     }
 
-    public LinkedList<GravityObject> getObjects() {
+    public LinkedList<SimpleGravityObject> getObjects() {
         return objects;
     }
 

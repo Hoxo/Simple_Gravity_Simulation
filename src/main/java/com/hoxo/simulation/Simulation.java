@@ -9,11 +9,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class Simulation {
-    private LinkedList<GravityObject> objects = new LinkedList<>();
+    private LinkedList<SimpleGravityObject> objects = new LinkedList<>();
     private Trail path;
     private GravityObjectFactory factory;
     private volatile boolean col, acc;
-    private Collection<GravityObject> destroyed = new LinkedList<>();
+    private Collection<SimpleGravityObject> destroyed = new LinkedList<>();
 
     private static final double     EPS = 2;
     private static final double     BOUNCE_SCALE = 0.85;
@@ -42,14 +42,14 @@ public class Simulation {
         acc = v;
     }
 
-    public Collection<GravityObject> getObjects() {
+    public Collection<SimpleGravityObject> getObjects() {
         return objects;
     }
 
     private void checkForCollisions() {
         for(int i = 0; i < objects.size(); i++)
             for(int k = i + 1; k < objects.size(); k++) {
-                GravityObject o1 = objects.get(i), o2 = objects.get(k);
+                SimpleGravityObject o1 = objects.get(i), o2 = objects.get(k);
                 double constr = o1.radius + o2.radius;
                 double range = Helper.range(o1, o2);
                 if (range <= constr + EPS) {
@@ -69,9 +69,9 @@ public class Simulation {
     }
 
     private void updateAccelerationVectors() {
-        for (GravityObject o1 : objects) {
+        for (SimpleGravityObject o1 : objects) {
             o1.acc = Vector2D.nullVector();
-            for (GravityObject o2 : objects)
+            for (SimpleGravityObject o2 : objects)
                 if (o1 != o2 && !o1.isStatic) {
                     Vector2D vector = Helper.accelerationVector(o1, o2);
                     if (isIntersect(o1,o2)) {
@@ -87,14 +87,14 @@ public class Simulation {
         }
     }
 
-    private boolean isCollided(GravityObject o1,GravityObject o2) {
+    private boolean isCollided(SimpleGravityObject o1, SimpleGravityObject o2) {
         return Math.abs(Helper.range(o1, o2) - (o1.radius + o2.radius)) < EPS;
     }
 
     public void calculatePath(double x, double y, Vector2D v, int r, double delta) {
-        List<GravityObject> staticObjects =
+        List<SimpleGravityObject> staticObjects =
                 objects.stream().filter(object -> object.isStatic).collect(Collectors.toList());
-        GravityObject o1 = factory.gravityObject(x,y,v,r);
+        SimpleGravityObject o1 = factory.gravityObject(x,y,v,r);
         int size = CALCULATED_PATH_LENGTH;
         Trail trail = new Trail(size);
         for (int i = 0; i < size; i++) {
@@ -103,7 +103,7 @@ public class Simulation {
             trail.addPoint(new Point(o1.point));
 
             o1.acc = Vector2D.nullVector();
-            for(GravityObject stc : staticObjects)
+            for(SimpleGravityObject stc : staticObjects)
                 o1.acc.add(Helper.accelerationVector(o1,stc));
             o1.velocity.x += o1.acc.x * delta;
             o1.velocity.y += o1.acc.y * delta;
@@ -112,8 +112,8 @@ public class Simulation {
         path = trail;
     }
 
-    private boolean isCollided(GravityObject object) {
-        for (GravityObject go : objects) {
+    private boolean isCollided(SimpleGravityObject object) {
+        for (SimpleGravityObject go : objects) {
             if (go != object) {
                 double range = Helper.range(object, go);
                 if (go.radius + object.radius >= range)
@@ -132,7 +132,7 @@ public class Simulation {
     }
 
 
-    private void calculateBounce(GravityObject o1, GravityObject o2) {
+    private void calculateBounce(SimpleGravityObject o1, SimpleGravityObject o2) {
         Vector2D vector2 = new Vector2D(o1.point,o2.point);
         double theta1 = o1.velocity.getAngle(),
                 theta2 = o2.velocity.getAngle(),
@@ -155,7 +155,7 @@ public class Simulation {
     }
 
     private void updateVelocityVectors(double delta) {
-        for (GravityObject obj : objects) {
+        for (SimpleGravityObject obj : objects) {
                 obj.velocity.x += obj.acc.x * delta;
                 obj.velocity.y += obj.acc.y * delta;
         }
@@ -175,12 +175,12 @@ public class Simulation {
         objects.removeIf(object -> object.point.distance(0,0) > LIMIT_RANGE);
     }
 
-    private boolean isIntersect(GravityObject o1, GravityObject o2) {
+    private boolean isIntersect(SimpleGravityObject o1, SimpleGravityObject o2) {
         return Helper.range(o1, o2) < o1.radius + o2.radius;
     }
 
     private void move(double delta) {
-        for (GravityObject object : objects) {
+        for (SimpleGravityObject object : objects) {
             double x = object.point.x,
                     y = object.point.y;
             object.getTrail().addPoint(x, y);
@@ -205,15 +205,15 @@ public class Simulation {
 
     public void changeTrailsLength(int len) {
         factory.setTrailLength(len);
-        for (GravityObject object : objects)
+        for (SimpleGravityObject object : objects)
             object.setTrailLength(len);
     }
 
     public void restoreSnapShot(SnapShot snapShot) {
         objects.clear();
-        for (GravityObject obj : snapShot.getObjects())
+        for (SimpleGravityObject obj : snapShot.getObjects())
             try {
-                objects.add((GravityObject) obj.clone());
+                objects.add((SimpleGravityObject) obj.clone());
             } catch (Exception e) {}
     }
 

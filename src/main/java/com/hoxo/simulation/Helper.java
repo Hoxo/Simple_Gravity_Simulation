@@ -9,18 +9,17 @@ class Helper {
 
     public final static double G = 0.2;
 
-    public static double range(GravityObject from, GravityObject to) {
+    public static double range(SimpleGravityObject from, SimpleGravityObject to) {
         return from.point.distance(to.point);
     }
 
-    public static double calculateAcceleration(GravityObject from, GravityObject to) {
+    public static double calculateAcceleration(SimpleGravityObject from, SimpleGravityObject to) {
         double R = range(from, to);
         double M = to.mass;
-        double a = (G * M)/(R*R);
-        return a;
+        return (G * M)/(R*R);
     }
 
-    public static Vector2D accelerationVector(GravityObject from, GravityObject to) {
+    public static Vector2D accelerationVector(SimpleGravityObject from, SimpleGravityObject to) {
         Vector2D vec = Vector2D.vector(to.point.x - from.point.x, to.point.y - from.point.y);
         double a = calculateAcceleration(from, to);
         vec.setLength(a);
