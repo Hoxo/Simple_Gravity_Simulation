@@ -15,10 +15,12 @@ import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
 import javafx.util.StringConverter;
 
 import java.io.FileInputStream;
 import java.io.ObjectInputStream;
+import java.util.Collection;
 
 public class Controller {
 
@@ -53,6 +55,7 @@ public class Controller {
 
     private MouseEventAdapter mouseEventAdapter;
     private volatile SimpleDoubleProperty delta;
+    private NewSimulation newSimulation;
     private Simulation simulation;
     private AnimationTimer timer;
     private SimpleBooleanProperty isOn;
@@ -65,9 +68,9 @@ public class Controller {
         public MouseEventAdapter() {
 
             mouseDragged = event -> {
-                if (pressed) {
-                    simulation.calculatePath(point.getX(),point.getY(),getVelocityVector(event), (int)radius.getValue(), delta.get());
-                }
+//                if (pressed) {
+//                    simulation.calculatePath(point.getX(),point.getY(),getVelocityVector(event), (int)radius.getValue(), delta.get());
+//                }
             };
             mousePressed = event -> {
                 pressed = true;
@@ -100,10 +103,27 @@ public class Controller {
             public void handle(long now) {
                 label.setText(simulation.getObjects().size() + "");
                 simulation.tick(delta.get());
-                draw(simulation);
+                redraw(simulation.getObjects());
             }
         };
         simulation = new Simulation(new SimpleGravityObjectFactory());
+
+        // EXPERIMENTS
+
+        simulation.addStaticGravityObject(2000,2000, 100);
+        for (int y = 0; y < 1000; y += 900) {
+            SimpleGravityObject go1, go2;
+            go1 = new SimpleGravityObject(300, 200, Vector2D.nullVector(), 10, 10);
+            go2 = new SimpleGravityObject.Static(300, 300, 10, 100);
+            go2.setSatellite(go1, 100, 100);
+            GravitySystem system = new GravitySystem(go2, Vector2D.nullVector());
+            system.add(go1);
+            go1.setName("12345678");
+            simulation.getObjects().getFirst().setSatellite(system, 500 + y, 300);
+            System.out.println(system);
+            simulation.add(system);
+        }
+        // END
     }
 
     public void initialize() {
@@ -176,37 +196,49 @@ public class Controller {
     }
 
     private void drawTrail(Trail trail) {
+        if (trail == null)
+            return;
         GraphicsContext gc = canvas.getGraphicsContext2D();
         double scaleValue = scaleSlider.getValue();
         for (Point point : trail)
             gc.fillOval(point.x / scaleValue, point.y / scaleValue ,1, 1);
     }
 
-    private void draw(Simulation simulation) {
+    private void redraw(Collection<? extends GravityObject> collection) {
         GraphicsContext gc = canvas.getGraphicsContext2D();
-
         gc.clearRect(0,0,canvas.getWidth(),canvas.getHeight());
-        for(GravityObject obj : simulation.getObjects()) {
-            gc.setFill(Color.BLACK);
-            if (showTrails.isSelected()) {
-                if (!obj.isStatic)
-                    drawTrail(obj.getTrail());
-                Trail path = simulation.getPath();
-                if (path != null)
-                    drawTrail(path);
-            }
-            double scaleValue = scaleSlider.getValue();
-            Point point = new Point(obj.point.x / scaleValue , obj.point.y / scaleValue);
-            double currentRadius = obj.radius / scaleValue;
+        draw(collection);
+    }
 
-            if (obj.isStatic)
-                gc.fillOval(point.x - currentRadius,point.y - currentRadius, 2 * currentRadius, 2 * currentRadius);
+    private void draw(Collection<? extends GravityObject> collection) {
+        GraphicsContext gc = canvas.getGraphicsContext2D();
+        for(GravityObject obj : collection) {
+            if (obj instanceof GravitySystem)
+                draw(((GravitySystem) obj).getGravityObjects());
             else {
-                gc.setFill(Color.STEELBLUE);
-                gc.fillOval(point.x - currentRadius,point.y - currentRadius, 2 * currentRadius, 2 * currentRadius);
-                double scale =  100 / scaleValue;
-                gc.strokeLine(obj.point.x / scaleValue,obj.point.y / scaleValue,
-                        obj.point.x / scaleValue + obj.acc.x * scale, obj.point.y / scaleValue + obj.acc.y * scale);
+                gc.setFill(Color.BLACK);
+                if (showTrails.isSelected()) {
+                    drawTrail(obj.getTrail());
+                    Trail path = simulation.getPath();
+                    if (path != null)
+                        drawTrail(path);
+                }
+                double scaleValue = scaleSlider.getValue();
+                Point point = new Point(obj.getCenter().x / scaleValue, obj.getCenter().y / scaleValue);
+                double currentRadius = obj.getRadius() / scaleValue;
+
+                if (obj instanceof SimpleGravityObject.Static) {
+                    gc.fillOval(point.x - currentRadius, point.y - currentRadius, 2 * currentRadius, 2 * currentRadius);
+                }
+                else {
+                    gc.setFill(Color.STEELBLUE);
+                    gc.fillOval(point.x - currentRadius, point.y - currentRadius, 2 * currentRadius, 2 * currentRadius);
+                    double scale = 100 / scaleValue;
+                    gc.strokeLine(obj.getCenter().x / scaleValue, obj.getCenter().y / scaleValue,
+                            obj.getCenter().x / scaleValue + obj.getAcceleration().x * scale, obj.getCenter().y / scaleValue + obj.getAcceleration().y * scale);
+                }
+                gc.setFont(Font.font(8));
+                gc.fillText(obj.getName(),(obj.getCenter().x + obj.getRadius() + 5)/scaleValue, obj.getCenter().y / scaleValue);
             }
         }
     }

@@ -12,10 +12,10 @@ import java.util.function.Consumer;
  */
 public class Trail implements Iterable<Point> {
     private LinkedList<Point> trail;
-    private int size;
-    public Trail(int size) {
+    private int length;
+    public Trail(int length) {
         trail = new LinkedList<>();
-        this.size = size;
+        this.length = length;
     }
 
     public void addPoint(double x, double y) {
@@ -27,16 +27,16 @@ public class Trail implements Iterable<Point> {
             trail.add(point);
         if (trail.size() > 0 && !trail.getLast().equals(point))
             trail.add(point);
-        while (trail.size() > size)
+        while (trail.size() > length)
             trail.poll();
     }
 
-    public void setSize(int size) {
-        this.size = size;
+    public void setLength(int length) {
+        this.length = length;
     }
 
-    public int getSize() {
-        return size;
+    public int getLength() {
+        return length;
     }
 
     @Override
