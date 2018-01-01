@@ -2,15 +2,24 @@ package com.hoxo.simulation;
 
 import com.hoxo.geometric.Vector2D;
 
-/**
- * Created by Hoxo on 16.09.2017.
- */
+import java.util.HashMap;
+import java.util.Map;
+
 public abstract class GravityObjectFactory {
 
-    protected int trailLength = 1000;
+    protected static Map<Class<? extends GravityObject>, Collider> map = new HashMap<>();
+    static {
+        map.put(SimpleGravityObject.class, Colliders.simpleGravityObjectCollider());
+        map.put(SimpleGravityObject.Static.class, Colliders.staticGravityObjectCollider());
+    }
 
-    public abstract SimpleGravityObject gravityObject(double x, double y, Vector2D v, int r);
-    public abstract SimpleGravityObject staticGravityObject(double x, double y, int r);
+    protected int trailLength = 10000;
+
+    public abstract SimpleGravityObject gravityObject(double x, double y, Vector2D v, double r);
+    public abstract SimpleGravityObject staticGravityObject(double x, double y, double r);
+    public static Collider getCollider(Class<? extends GravityObject> clazz) {
+        return map.get(clazz);
+    }
 
     public void setTrailLength(int length) {
         trailLength = length;

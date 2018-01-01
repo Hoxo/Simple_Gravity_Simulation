@@ -5,19 +5,23 @@ import com.hoxo.geometric.Vector2D;
 
 import java.util.Collection;
 import java.util.LinkedList;
+import java.util.List;
 
 /**
  * Created by Hoxo on 10.12.2017.
  */
-public class GravitySystem implements GravityObject {
+public class GravitySystem extends GravityObject {
 
     private GravityObject centerOfSystem;
     private LinkedList<GravityObject> objects = new LinkedList<>();
     private Point centerOfMass = new Point(0,0);
     private double mass = 0;
+    private List<GravityObject> lost = new LinkedList<>();
     private Vector2D velocity, acceleration = Vector2D.nullVector();
-    private boolean destroyed = false;
-    private String name = "";
+
+    GravitySystem() {
+        collider = Colliders.gravitySystemCollider();
+    }
 
     public GravitySystem(GravityObject centerOfSystem, Vector2D velocity) {
         this.centerOfSystem = centerOfSystem;
@@ -25,6 +29,7 @@ public class GravitySystem implements GravityObject {
         mass = centerOfSystem.getMass();
         centerOfMass = new Point(centerOfSystem.getCenter());
         objects.addLast(centerOfSystem);
+        collider = Colliders.gravitySystemCollider();
     }
 
     public void add(GravityObject object) {
@@ -59,7 +64,9 @@ public class GravitySystem implements GravityObject {
     }
 
     public void setCenterOfSystem(GravityObject center) {
-        this.centerOfSystem = center;
+        objects.remove(centerOfSystem);
+        objects.add(center);
+        centerOfSystem = center;
         recalculate();
     }
 
@@ -78,9 +85,7 @@ public class GravitySystem implements GravityObject {
     }
 
     public LinkedList<GravityObject> getGravityObjects() {
-        LinkedList<GravityObject> l = new LinkedList<>(objects);
-        l.addLast(centerOfSystem);
-        return l;
+        return objects;
     }
 
 
@@ -105,7 +110,7 @@ public class GravitySystem implements GravityObject {
     }
 
     @Override
-    public int getRadius() {
+    public double getRadius() {
         int maxR = 0;
         for (GravityObject o1 : objects) {
             for (GravityObject o2 : objects) {
@@ -118,42 +123,26 @@ public class GravitySystem implements GravityObject {
     }
 
     @Override
-    public void interactWith(Collection<? extends GravityObject> objects) {
-        if (isDestroyed())
-            return;
+    public void recalculateAccelerationVector(Collection<? extends GravityObject> objects) {
         acceleration.x = 0;
         acceleration.y = 0;
         for (GravityObject object : objects)
             if (object != this && !object.isDestroyed())
-                if (!collideWith(object))
                     acceleration.add(accelerationVectorTo(object));
-                else
-                    collide(object);
+
     }
 
     @Override
     public void collide(GravityObject object) {
-
+        collider.collide(this, object);
     }
 
-    @Override
-    public void destroy() {
-        destroyed = true;
-    }
-
-    @Override
-    public boolean isDestroyed() {
-        return destroyed;
-    }
-
-    @Override
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    @Override
-    public String getName() {
-        return name;
+    public void removeDestroyed() {
+        LinkedList<GravityObject> destroyed = new LinkedList<>();
+        for (GravityObject object : objects)
+            if (object.isDestroyed())
+                destroyed.add(object);
+        objects.removeAll(destroyed);
     }
 
     @Override
@@ -164,21 +153,38 @@ public class GravitySystem implements GravityObject {
 
     @Override
     public void move(double deltaT) {
-        velocity.x += acceleration.x * deltaT;
-        velocity.y += acceleration.y * deltaT;
+//        velocity.x += acceleration.x * deltaT;
+//        velocity.y += acceleration.y * deltaT;
         double w = deltaT * getVelocity().x,
                 h = deltaT * getVelocity().y;
-
         run(deltaT);
         moveTo(getCenter().x + w, getCenter().y + h);
     }
 
+    public List<GravityObject> getAndRemoveLost() {
+//        for (GravityObject object : objects) {
+//            if (!object.collideWith(this))
+//                lost.add(object);
+//        }
+        objects.removeAll(lost);
+        LinkedList<GravityObject> l = new LinkedList<>(lost);
+        lost.clear();
+        return l;
+    }
+
     public void run(double deltaT) {
+        removeDestroyed();
         for (GravityObject object : objects)
             object.interactWith(objects);
-        for (GravityObject object : objects)
+        for (GravityObject object : objects) {
+            object.recalculateAccelerationVector(objects);
+            object.recalculateVelocityVector(deltaT);
+        }
+        for (GravityObject object : objects) {
             object.move(deltaT);
-
+            if (!collideWith(object))
+                lost.add(object);
+        }
     }
 
     public void moveTo(double x, double y) {
@@ -196,12 +202,13 @@ public class GravitySystem implements GravityObject {
 
     @Override
     public boolean collideWith(GravityObject object) {
-        return centerOfSystem.collideWith(object);
+        // TODO Написать!!!!!
+        return object.getCenter().distance(getCenter()) < 150;
     }
 
     @Override
     public Trail getTrail() {
-        return null;
+        return centerOfSystem.getTrail();
     }
 
     @Override
@@ -210,32 +217,17 @@ public class GravitySystem implements GravityObject {
     }
 
     @Override
-    public Vector2D accelerationVectorTo(GravityObject object) {
-        double R = range(object);
-        double M = object.getMass();
-        double a = (Util.G * M)/(R*R);
-        Vector2D vec = Vector2D.vector(object.getCenter().x - this.getCenter().x , object.getCenter().y - this.getCenter().y);
-        vec.setLength(a);
-        return vec;
-    }
-
-    @Override
     public GravityObject clone() {
-        GravitySystem gs = new GravitySystem(centerOfSystem.clone(), new Vector2D(velocity.x, velocity.y));
-
+        GravitySystem gs = new GravitySystem(centerOfSystem, new Vector2D(velocity.x, velocity.y));
         gs.centerOfMass = new Point(centerOfMass);
         gs.objects.clear();
         for (GravityObject object : objects)
             gs.objects.addLast(object.clone());
+        gs.centerOfSystem = gs.objects.getFirst();
         gs.mass = mass;
         gs.acceleration = new Vector2D(acceleration.x, acceleration.y);
 
         return gs;
-    }
-
-    @Override
-    public double range(GravityObject object) {
-        return getCenter().distance(object.getCenter());
     }
 
     @Override

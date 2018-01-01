@@ -3,17 +3,16 @@ package com.hoxo.simulation;
 import com.hoxo.geometric.Vector2D;
 
 import java.util.LinkedList;
+import java.util.List;
 
 public class Simulation {
     private LinkedList<GravityObject> objects = new LinkedList<>();
-    private Trail path;
+    private volatile Trail path;
     private GravityObjectFactory factory;
-    private volatile boolean col, acc;
-    private LinkedList<GravityObject> destroyed = new LinkedList<>();
+    private List<GravityObject> lost = new LinkedList<>();
+    private GravityObject focused;
 
-    private static final double     EPS = 2;
-    private static final double     BOUNCE_SCALE = 0.85;
-    private static final int        LIMIT_RANGE = 10000;
+    private static final int        LIMIT_RANGE = 100000;
     private static final int        CALCULATED_PATH_LENGTH = 10000;
 
 
@@ -26,6 +25,28 @@ public class Simulation {
         objects.add(factory.gravityObject(x, y, v, r));
     }
 
+    public boolean focus(double x, double y) {
+        focused = null;
+        for (GravityObject object : objects)
+            if (object.containsPoint(x, y)) {
+                focused = object;
+                break;
+            }
+        return focused != null;
+    }
+
+    public GravityObject getFocused() {
+        return focused;
+    }
+
+    public boolean hasFocused() {
+        return focused != null;
+    }
+
+    public void unfocus() {
+        focused = null;
+    }
+
     public void addStaticGravityObject(double x, double y, int r) {
         objects.add(factory.staticGravityObject(x,y,r));
     }
@@ -34,93 +55,32 @@ public class Simulation {
         objects.addLast(object);
     }
 
-    public void setCollision(boolean v) {
-        col = v;
-    }
-
-    public void setAcceleration(boolean v) {
-        acc = v;
-    }
-
     public LinkedList<GravityObject> getObjects() {
         return objects;
     }
 
-//    private void checkForCollisions() {
-//        for(int i = 0; i < objects.size(); i++)
-//            for(int k = i + 1; k < objects.size(); k++) {
-//                SimpleGravityObject o1 = objects.get(i), o2 = objects.get(k);
-//                double constr = o1.radius + o2.radius;
-//                double range = Util.range(o1, o2);
-//                if (range <= constr + EPS) {
-//                    if (o1.isStatic || o2.isStatic) {
-//                        destroyed.add(o1.isStatic ? o2 : o1);
-//                    } else {
-//                        if (range > constr)
-//                            if (!(o1.velocity.angleWith(new Vector2D(o1.center,o2.center)) > Math.PI/2 &&
-//                                    o2.velocity.angleWith(new Vector2D(o2.center,o1.center)) > Math.PI/2))
-//                                calculateBounce(o1, o2);
-//
-//                    }
-//                }
-//            }
-//        objects.removeAll(destroyed);
-//        destroyed.clear();
-//    }
+    public void calculatePath(double x, double y, Vector2D v, double r, double delta) {
+        SimpleGravityObject object = factory.gravityObject(x,y,v,r);
+        Simulation clone = clone();
+        clone.add(object);
+        int size = CALCULATED_PATH_LENGTH;
+        Trail trail = new Trail(size);
+        for (int i = 0; i < size; i++) {
+            clone.tick(delta);
+            if (object.isDestroyed())
+                break;
+            else
+                trail.addPoint(object.center);
+        }
+        path = trail;
+    }
 
-//    private void updateAccelerationVectors() {
-//        for (SimpleGravityObject o1 : objects) {
-//            o1.acc = Vector2D.nullVector();
-//            for (SimpleGravityObject o2 : objects)
-//                if (o1 != o2 && !o1.isStatic) {
-//                    Vector2D vector = Util.accelerationVector(o1, o2);
-//                    if (isIntersect(o1,o2)) {
-//                        vector.reverse();
-//                        o1.acc.add(vector);
-//
-//                    }
-//                    else
-//                    if (!isCollided(o1, o2)) {
-//                        o1.acc.add(vector);
-//                    }
-//                }
-//        }
-//    }
-//    private boolean isCollided(SimpleGravityObject o1, SimpleGravityObject o2) {
-//        return Math.abs(Util.range(o1, o2) - (o1.radius + o2.radius)) < EPS;
-//    }
-
-//    public void calculatePath(double x, double y, Vector2D v, int r, double delta) {
-//        List<SimpleGravityObject> staticObjects =
-//                objects.stream().filter(object -> object.isStatic).collect(Collectors.toList());
-//        SimpleGravityObject o1 = factory.gravityObject(x,y,v,r);
-//        int size = CALCULATED_PATH_LENGTH;
-//        Trail trail = new Trail(size);
-//        for (int i = 0; i < size; i++) {
-//            if (isCollided(o1))
-//                break;
-//            trail.addPoint(new Point(o1.center));
-//
-//            o1.acc = Vector2D.nullVector();
-//            for(SimpleGravityObject stc : staticObjects)
-//                o1.acc.add(Util.accelerationVector(o1,stc));
-//            o1.velocity.x += o1.acc.x * delta;
-//            o1.velocity.y += o1.acc.y * delta;
-//            o1.center.move(o1.velocity.x * delta, o1.velocity.y * delta);
-//        }
-//        path = trail;
-//    }
-
-//    private boolean isCollided(SimpleGravityObject object) {
-//        for (SimpleGravityObject go : objects) {
-//            if (go != object) {
-//                double range = Util.range(object, go);
-//                if (go.radius + object.radius >= range)
-//                    return true;
-//            }
-//        }
-//        return false;
-//    }
+    public Simulation clone() {
+        Simulation simulation = new Simulation(factory);
+        for (GravityObject object : objects)
+            simulation.objects.add(object.clone());
+        return simulation;
+    }
 
     public Trail getPath() {
         return path;
@@ -130,53 +90,50 @@ public class Simulation {
         path = null;
     }
 
-
-//    private void calculateBounce(SimpleGravityObject o1, SimpleGravityObject o2) {
-//        Vector2D vector2 = new Vector2D(o1.center,o2.center);
-//        double theta1 = o1.velocity.getAngle(),
-//                theta2 = o2.velocity.getAngle(),
-//                phi = vector2.getAngle(),
-//                v1 = o1.velocity.length(),
-//                v2 = o2.velocity.length(),
-//                m1 = o1.mass,
-//                m2 = o2.mass;
-//        o1.velocity.x = (v1 * Math.cos(theta1 - phi) * (m1 - m2) + 2 * m2 * v2 * Math.cos(theta2 - phi))*Math.cos(phi)/
-//                (m1 + m2) + v1*Math.sin(theta1 - phi)*Math.cos(phi + Math.PI/2);
-//        o1.velocity.y = (v1 * Math.cos(theta1 - phi) * (m1 - m2) + 2 * m2 * v2 * Math.cos(theta2 - phi))*Math.sin(phi)/
-//                (m1 + m2) + v1*Math.sin(theta1 - phi)*Math.sin(phi + Math.PI/2);
-//        o2.velocity.x = (v2 * Math.cos(theta2 - phi) * (m2 - m1) + 2 * m1 * v1 * Math.cos(theta1 - phi))*Math.cos(phi)/
-//                (m1 + m2) + v2*Math.sin(theta2 - phi)*Math.cos(phi + Math.PI/2);
-//        o2.velocity.y = (v2 * Math.cos(theta2 - phi) * (m2 - m1) + 2 * m1 * v1 * Math.cos(theta1 - phi))*Math.sin(phi)/
-//                (m1 + m2) + v2*Math.sin(theta2 - phi)*Math.sin(phi + Math.PI/2);
-//
-////        o1.velocity.scaleLength(BOUNCE_SCALE);
-////        o2.velocity.scaleLength(BOUNCE_SCALE);
-//    }
-
-//    private void updateVelocityVectors(double delta) {
-//        for (SimpleGravityObject obj : objects) {
-//                obj.velocity.x += obj.acc.x * delta;
-//                obj.velocity.y += obj.acc.y * delta;
-//        }
-//    }
-
     public void tick(double delta) {
         destroyLostObjects();
+        addOutOfGravitySystemsObjects();
         for (GravityObject object : objects)
             object.interactWith(objects);
-        for (GravityObject object : objects)
-            object.move(delta);
         cleanup();
-
-//        if (col)
-//            checkForCollisions();
-//        if (acc)
-//            updateAccelerationVectors();
-//        updateVelocityVectors(delta);
-//        move(delta);
+        if (delta > 0) {
+            recalculateAllAccelerationVectors();
+            recalculateAllVelocityVectors(delta);
+            moveAll(delta);
+        } else {
+            moveAll(delta);
+            recalculateAllAccelerationVectors();
+            recalculateAllVelocityVectors(delta);
+        }
     }
 
-    public void cleanup() {
+    private void moveAll(double delta) {
+        for (GravityObject object : objects)
+            object.move(delta);
+    }
+
+    private void recalculateAllVelocityVectors(double delta) {
+        for (GravityObject object : objects) {
+            object.recalculateVelocityVector(delta);
+        }
+    }
+
+    private void recalculateAllAccelerationVectors() {
+        for (GravityObject object : objects) {
+            object.recalculateAccelerationVector(objects);
+        }
+    }
+
+    private void addOutOfGravitySystemsObjects() {
+        lost.clear();
+        for (GravityObject object : objects) {
+            if (object instanceof GravitySystem)
+                lost.addAll(((GravitySystem) object).getAndRemoveLost());
+        }
+        objects.addAll(lost);
+    }
+
+    private void cleanup() {
         LinkedList<GravityObject> destroyed = new LinkedList<>();
         for (GravityObject object : objects)
             if (object.isDestroyed())
@@ -188,19 +145,6 @@ public class Simulation {
     private void destroyLostObjects() {
         objects.removeIf(object -> object.getCenter().distance(0,0) > LIMIT_RANGE);
     }
-
-//    private boolean isIntersect(SimpleGravityObject o1, SimpleGravityObject o2) {
-//        return Util.range(o1, o2) < o1.radius + o2.radius;
-//    }
-//
-//    private void move(double delta) {
-//        for (SimpleGravityObject object : objects) {
-//            double x = object.center.x,
-//                    y = object.center.y;
-//            object.getTrail().addPoint(x, y);
-//            object.center.move(delta * object.velocity.x, delta * object.velocity.y);
-//        }
-//    }
 
     //TODO Timer не простит
     public void deleteLast() {

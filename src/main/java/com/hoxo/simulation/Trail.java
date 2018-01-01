@@ -23,6 +23,7 @@ public class Trail implements Iterable<Point> {
     }
 
     public void addPoint(Point point) {
+        point = new Point(point);
         if (trail.size() == 0)
             trail.add(point);
         if (trail.size() > 0 && !trail.getLast().equals(point))
@@ -36,7 +37,7 @@ public class Trail implements Iterable<Point> {
     }
 
     public int getLength() {
-        return length;
+        return trail.size();
     }
 
     @Override

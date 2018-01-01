@@ -14,7 +14,7 @@
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane xmlns="http://javafx.com/javafx/8.0.111" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.hoxo.Controller">
+<BorderPane prefHeight="530.0" prefWidth="909.0" xmlns="http://javafx.com/javafx/9.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.hoxo.Controller">
    <top>
       <MenuBar BorderPane.alignment="CENTER">
         <menus>
@@ -25,7 +25,7 @@
           </Menu>
           <Menu mnemonicParsing="false" text="Edit">
             <items>
-              <MenuItem mnemonicParsing="false" text="Delete" />
+              <MenuItem mnemonicParsing="false" onAction="#deleteAll" text="Delete" />
             </items>
           </Menu>
           <Menu mnemonicParsing="false" text="Help">
@@ -38,37 +38,35 @@
       </MenuBar>
    </top>
    <center>
-      <AnchorPane prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
+      <AnchorPane prefHeight="506.0" prefWidth="949.0" BorderPane.alignment="CENTER">
          <children>
-            <VBox alignment="CENTER" layoutX="578.0" prefHeight="500.0" prefWidth="150.0" spacing="5.0" AnchorPane.bottomAnchor="0.0" AnchorPane.rightAnchor="10.0" AnchorPane.topAnchor="0.0">
+            <VBox alignment="CENTER" layoutX="574.0" prefHeight="515.0" prefWidth="164.0" spacing="5.0" AnchorPane.bottomAnchor="5.0" AnchorPane.rightAnchor="10.0" AnchorPane.topAnchor="5.0">
                <opaqueInsets>
                   <Insets />
                </opaqueInsets>
                <children>
                   <Label fx:id="state" text="Off" />
+                  <Label fx:id="coordinates" alignment="CENTER" text="Label" />
+                  <Label fx:id="scaleLabel" alignment="CENTER" text="Label" />
                   <Label text="Количество объектов:" />
                   <Label fx:id="label" text="0" />
-                  <CheckBox fx:id="isCollide" mnemonicParsing="false" onAction="#setCollision" text="Обрабатывать столкновения" />
+                  <CheckBox fx:id="isCollide" mnemonicParsing="false" text="Обратить время" />
                   <CheckBox fx:id="showTrails" mnemonicParsing="false" text="Отображать след" />
-                  <CheckBox fx:id="isAcc" mnemonicParsing="false" onAction="#setAcceleration" text="Рассчитывать ускорение" />
                   <CheckBox fx:id="isStatic" mnemonicParsing="false" text="Статичный" />
-                  <Label text="Длина следа:" />
-                  <TextField fx:id="trailLength" onAction="#changeTrailLength" />
                   <Label text="Радиус:" />
-                  <Slider fx:id="radius" blockIncrement="1.0" min="1.0" value="10.0" />
+                  <Slider fx:id="radius" blockIncrement="1.0" focusTraversable="false" min="1.0" value="10.0" />
                   <Label fx:id="radiusLabel" />
-                  <Button mnemonicParsing="false" onAction="#handleStart" text="Старт" />
-                  <Button mnemonicParsing="false" onAction="#handleStop" text="Стоп" />
                   <Button mnemonicParsing="false" onAction="#deleteLast" text="Удалить последний" />
                   <Button mnemonicParsing="false" onAction="#deleteAll" text="Удалить все" />
-                  <Label text="Точность" />
-                  <Slider fx:id="deltaSlider" blockIncrement="0.05" max="4.0" value="0.5" />
-                  <Label text="Масштаб" />
-                  <Slider fx:id="scaleSlider" blockIncrement="1.0" max="10.0" min="1.0" value="1.0" />
-                  <Button mnemonicParsing="false" onAction="#dump" text="DUMP" />
+                  <Label fx:id="deltaLabel" text="Time: " />
+                  <Slider fx:id="deltaSlider" blockIncrement="0.05" focusTraversable="false" max="4.0" value="0.5" />
+                  <Button mnemonicParsing="false" onAction="#dump" text="INFO" />
+                  <Label text="Название:" />
+                  <TextField fx:id="nameField" prefHeight="25.0" prefWidth="121.0" />
+                  <Button mnemonicParsing="false" onAction="#saveTemplate" text="Сохранить конфигурацию" />
                </children>
             </VBox>
-            <Canvas fx:id="canvas" height="500.0" style="-fx-border-color: #333333;" width="556.0" AnchorPane.bottomAnchor="10.0" AnchorPane.leftAnchor="10.0" AnchorPane.rightAnchor="170.0" AnchorPane.topAnchor="10.0" />
+            <Canvas fx:id="canvas" height="500.0" style="-fx-border-color: #333333;" width="717.0" AnchorPane.bottomAnchor="10.0" AnchorPane.leftAnchor="10.0" AnchorPane.rightAnchor="182.0" AnchorPane.topAnchor="10.0" />
          </children>
       </AnchorPane>
    </center>

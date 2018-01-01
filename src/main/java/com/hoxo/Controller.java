@@ -13,14 +13,15 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
+import javafx.scene.transform.Affine;
 import javafx.util.StringConverter;
-
-import java.io.FileInputStream;
-import java.io.ObjectInputStream;
-import java.util.Collection;
+import java.io.*;
+import java.util.*;
 
 public class Controller {
 
@@ -39,69 +40,134 @@ public class Controller {
     @FXML
     private Slider deltaSlider;
     @FXML
-    private CheckBox isAcc;
-    @FXML
     private CheckBox showTrails;
     @FXML
     private Menu templates;
     @FXML
     private Label radiusLabel;
     @FXML
-    private TextField trailLength;
+    private Label coordinates;
     @FXML
-    private Slider scaleSlider;
+    private Label scaleLabel;
+    @FXML
+    private Label deltaLabel;
+    @FXML
+    private TextField nameField;
+
+    static double EARTH_RADIUS = 10;
+    static double EARTH_MASS = 100;
+    static double EARTH_ORBIT = 1000;
+    static double MOON_RELATIVE_RADIUS = 0.273;
+    static double MOON_RELATIVE_MASS = 0.0123;
+    static double MOON_RELATIVE_ORBIT = 62;
+    static double SUN_RELATIVE_RADIUS = 109;
+    static double SUN_RELATIVE_MASS = 1000;
+
 
     private static final double VELOCITY_SCALE = 0.02;
+    private static final double SHIFT_VALUE = 10;
+    private static final double INC_SCALE_VALUE = 1.1;
+    private static final double DEC_SCALE_VALUE = 1/INC_SCALE_VALUE;
+    private static final int STARS_AMOUNT = 1000;
+    private static final String examplesFilename = "examples.txt";
 
+    private List<SnapShot> snapShots = new LinkedList<>();
+    private Map<KeyCode, Runnable> keyCommandMap = new HashMap<>();
+    private List<Point> stars;
     private MouseEventAdapter mouseEventAdapter;
     private volatile SimpleDoubleProperty delta;
-    private NewSimulation newSimulation;
     private Simulation simulation;
     private AnimationTimer timer;
     private SimpleBooleanProperty isOn;
+    private double scale = 1;
+    private Vector2D shift = new Vector2D(0,0);
 
     private class MouseEventAdapter {
         public final EventHandler<? super MouseEvent> mousePressed, mouseReleased, mouseDragged;
         private Point2D point;
-        private volatile boolean pressed;
+        private volatile boolean pressed, created;
+        private Vector2D currentVelocity;
 
         public MouseEventAdapter() {
 
             mouseDragged = event -> {
-//                if (pressed) {
+                if (pressed) {
+                    if (created) {
+                        currentVelocity = getVelocityVector(event);
+                        simulation.calculatePath(point.getX(),point.getY(),getVelocityVector(event), radius.getValue(), delta.get());
+                    }
+                    else
+                        if (!simulation.hasFocused()) {
+                            Vector2D shift = getVelocityVector(event);
+                            shift.scaleLength(1/VELOCITY_SCALE);
+                            makeShift(-shift.x, - shift.y);
+
+                        }
 //                    simulation.calculatePath(point.getX(),point.getY(),getVelocityVector(event), (int)radius.getValue(), delta.get());
-//                }
+                }
             };
             mousePressed = event -> {
                 pressed = true;
-                double scaleValue = scaleSlider.getValue();
-                point = new Point2D(event.getX()*scaleValue,event.getY()*scaleValue);
+                Affine affine = canvas.getGraphicsContext2D().getTransform();
+                point = new Point2D((event.getX() - affine.getTx())/affine.getMxx() ,(event.getY() - affine.getTy())/affine.getMyy());
+                if (event.getButton() == MouseButton.SECONDARY)
+                    created = true;
+                else
+                    simulation.focus(point.getX(), point.getY());
+
             };
             mouseReleased = event -> {
                 pressed = false;
+                currentVelocity = null;
                 simulation.removePath();
-                if (isStatic.isSelected())
-                    simulation.addStaticGravityObject(point.getX(),point.getY(),(int)radius.getValue());
-                else
-                    simulation.addGravityObject(point.getX(),point.getY(),getVelocityVector(event),(int)radius.getValue());
+                if (created) {
+                    if (isStatic.isSelected())
+                        simulation.addStaticGravityObject(point.getX(),point.getY(),(int)radius.getValue());
+                    else
+                        simulation.addGravityObject(point.getX(),point.getY(),getVelocityVector(event),(int)radius.getValue());
+                    created = false;
+                }
+
             };
         }
 
         private Vector2D getVelocityVector(MouseEvent event) {
-            return new Vector2D(VELOCITY_SCALE * (point.getX() - event.getX() * scaleSlider.getValue()),
-                        VELOCITY_SCALE * (point.getY() - event.getY()*scaleSlider.getValue()));
+            Affine affine = canvas.getGraphicsContext2D().getTransform();
+            return new Vector2D(VELOCITY_SCALE * (point.getX() - (event.getX() - affine.getTx())/affine.getMxx()),
+                        VELOCITY_SCALE * (point.getY() - (event.getY() - affine.getTy())/affine.getMyy()));
 
+        }
+
+        public Point getCurrentMouseCoordinates(MouseEvent event) {
+            Affine affine = canvas.getGraphicsContext2D().getTransform();
+            return new Point((event.getX() - affine.getTx())/affine.getMxx() ,(event.getY() - affine.getTy())/affine.getMyy());
         }
     }
 
     public Controller() {
+        stars = new LinkedList<>();
+        keyCommandMap.put(KeyCode.MINUS, () -> makeScale(DEC_SCALE_VALUE));
+        keyCommandMap.put(KeyCode.EQUALS, () -> makeScale(INC_SCALE_VALUE));
+        keyCommandMap.put(KeyCode.RIGHT, () -> makeShift(-SHIFT_VALUE/scale, 0));
+        keyCommandMap.put(KeyCode.LEFT, () -> makeShift(SHIFT_VALUE/scale, 0));
+        keyCommandMap.put(KeyCode.UP, () -> makeShift(0,SHIFT_VALUE/scale));
+        keyCommandMap.put(KeyCode.DOWN, () -> makeShift(0, -SHIFT_VALUE/scale));
         mouseEventAdapter = new MouseEventAdapter();
         delta = new SimpleDoubleProperty(1);
         isOn = new SimpleBooleanProperty(false);
         timer = new AnimationTimer() {
+            long time = 0;
+
             @Override
             public void handle(long now) {
                 label.setText(simulation.getObjects().size() + "");
+                state.setText("Время: " + time);
+                time += delta.get();
+                if (simulation.hasFocused())
+                    setCenterTo(simulation.getFocused().getCenter());
+//                if (mouseEventAdapter.pressed && mouseEventAdapter.created)
+//                    if (mouseEventAdapter.currentVelocity != null)
+//                        simulation.calculatePath(mouseEventAdapter.point.getX(), mouseEventAdapter.point.getY(), mouseEventAdapter.currentVelocity, radius.getValue(), delta.get());
                 simulation.tick(delta.get());
                 redraw(simulation.getObjects());
             }
@@ -110,46 +176,45 @@ public class Controller {
 
         // EXPERIMENTS
 
-        simulation.addStaticGravityObject(2000,2000, 100);
-        for (int y = 0; y < 1000; y += 900) {
-            SimpleGravityObject go1, go2;
-            go1 = new SimpleGravityObject(300, 200, Vector2D.nullVector(), 10, 10);
-            go2 = new SimpleGravityObject.Static(300, 300, 10, 100);
-            go2.setSatellite(go1, 100, 100);
-            GravitySystem system = new GravitySystem(go2, Vector2D.nullVector());
-            system.add(go1);
-            go1.setName("12345678");
-            simulation.getObjects().getFirst().setSatellite(system, 500 + y, 300);
-            System.out.println(system);
-            simulation.add(system);
-        }
-        // END
+        SimpleGravityObject sun, earth, moon;
+        sun = new SimpleGravityObject.Static(0,0, EARTH_RADIUS * SUN_RELATIVE_RADIUS, EARTH_MASS * SUN_RELATIVE_MASS);
+        sun.setName("SUN");
+        earth = new SimpleGravityObject(0,0,Vector2D.nullVector(), EARTH_RADIUS,EARTH_MASS);
+        earth.setName("EARTH");
+        moon = new SimpleGravityObject(0,0,Vector2D.nullVector(),EARTH_RADIUS * MOON_RELATIVE_RADIUS, EARTH_MASS * MOON_RELATIVE_MASS);
+        moon.setName("MOON");
+        sun.setSatellite(earth,1000, 30);
+//        earth.setSatellite(moon,50,50);
+//        earth.setSatellite(moon,200, 0);
+        simulation.add(earth);
+        simulation.add(sun);
+//        simulation.add(moon);
+
+
     }
 
     public void initialize() {
+
+        canvas.getParent().setOnKeyPressed(this::handleKeyEvent);
         readSnapShots();
-        deltaSlider.setMin(0);
-        deltaSlider.setMax(4);
+        deltaSlider.setMin(-2);
+        deltaSlider.setMax(2);
         deltaSlider.setBlockIncrement(0.05);
-        deltaSlider.setValue(3);
-        delta.bind(deltaSlider.valueProperty().subtract(4).negate());
+        deltaSlider.setFocusTraversable(false);
+        isCollide.setOnAction(event -> deltaSlider.setValue(-deltaSlider.getValue()));
+        deltaSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
+            Formatter formatter = new Formatter(Locale.ENGLISH);
+            String s = formatter.format("Time: %.2f",newValue).toString();
+            deltaLabel.setText(s);
+        });
+        deltaSlider.setValue(1);
+        delta.bind(deltaSlider.valueProperty());
         canvas.setOnKeyTyped(event -> {
             if (event.getCode().equals(KeyCode.S)){
                 if (isOn.get())
                     handleStop();
                 else
                     handleStart();
-            }
-        });
-        state.textProperty().bindBidirectional(isOn, new StringConverter<Boolean>() {
-            @Override
-            public String toString(Boolean object) {
-                return object ? "ON" : "OFF";
-            }
-
-            @Override
-            public Boolean fromString(String string) {
-                return "ON".equals(string) ? Boolean.TRUE : Boolean.FALSE;
             }
         });
         radiusLabel.textProperty().bindBidirectional(radius.valueProperty(), new StringConverter<Number>() {
@@ -166,79 +231,146 @@ public class Controller {
         canvas.setOnMousePressed(mouseEventAdapter.mousePressed);
         canvas.setOnMouseReleased(mouseEventAdapter.mouseReleased);
         canvas.setOnMouseDragged(mouseEventAdapter.mouseDragged);
+        canvas.setOnScroll(event -> {
+            if (event.getDeltaY() > 0)
+                makeScale(INC_SCALE_VALUE);
+            else
+                makeScale(DEC_SCALE_VALUE);
+        });
         handleStart();
+        updateTransformInfo();
+    }
+
+    private void handleKeyEvent(KeyEvent event) {
+        Runnable command = keyCommandMap.get(event.getCode());
+        if (command != null)
+            command.run();
+        event.consume();
+    }
+
+    private void makeScale(double value) {
+        GraphicsContext gc = canvas.getGraphicsContext2D();
+        Point center = getCenterOfView();
+        gc.scale(value, value);
+        setCenterTo(center);
+        scale *= value;
+        updateTransformInfo();
+    }
+
+    private Point getCenterOfView() {
+        Affine affine = canvas.getGraphicsContext2D().getTransform();
+        return new Point((-affine.getTx() + canvas.getWidth()/2)/affine.getMxx(), (-affine.getTy() + canvas.getHeight()/2)/affine.getMyy());
+    }
+
+    private void setCenterTo(Point center) {
+        GraphicsContext gc = canvas.getGraphicsContext2D();
+        Affine affine = gc.getTransform();
+        double halfW = canvas.getWidth()/ (affine.getMxx() * 2),
+                halfH = canvas.getHeight() / (affine.getMyy() * 2),
+                x0 = -affine.getTx()/affine.getMxx(),
+                y0 = -affine.getTy()/affine.getMyy();
+        gc.translate(-(center.x - halfW) + x0, -(center.y - halfH) + y0);
+        updateTransformInfo();
+    }
+
+    private void makeShift(double w, double h) {
+        simulation.unfocus();
+        shift.x += w;
+        shift.y += h;
+        GraphicsContext gc = canvas.getGraphicsContext2D();
+        gc.translate(w, h);
+        updateTransformInfo();
+    }
+
+    private void updateTransformInfo() {
+        Formatter formatter = new Formatter(Locale.ENGLISH);
+        Affine affine = canvas.getGraphicsContext2D().getTransform();
+        scaleLabel.setText(formatter.format("Масштаб: %.4f",affine.getMxx()).toString());
+        formatter = new Formatter(Locale.ENGLISH);
+        double x, y;
+        x = affine.getTx()/affine.getMxx();
+        y = affine.getTy()/affine.getMyy();
+        coordinates.setText(formatter.format("Координаты:\n%.3f %.3f",-x + canvas.getWidth()/scale/2,-y + canvas.getHeight()/scale/2).toString());
     }
 
     private void readSnapShots() {
-        try (ObjectInputStream inputStream = new ObjectInputStream(new FileInputStream("templates"))){
-            int c = 0;
-            for(;;){
+        try (ObjectInputStream inputStream = new ObjectInputStream(new FileInputStream(examplesFilename))){
+            for (;;) {
                 SnapShot snapShot = (SnapShot) inputStream.readObject();
-                MenuItem item = new MenuItem("#" + (c+1) + " (" + snapShot.name + ")" );
-                item.setOnAction(event -> simulation.restoreSnapShot(snapShot));
-                templates.getItems().add(item);
-                c++;
+                snapShots.add(snapShot);
+                addMenuItem(snapShot);
             }
+        } catch (EOFException e) {
+
         } catch (Exception e) {
-
+            e.printStackTrace();
         }
-
     }
 
-    @FXML
-    private void setCollision() {
-        simulation.setCollision(isCollide.isSelected());
-    }
-
-    @FXML
-    private void setAcceleration() {
-        simulation.setAcceleration(isAcc.isSelected());
+    private void addMenuItem(SnapShot snapShot) {
+        MenuItem item = new MenuItem(snapShot.name);
+        item.setOnAction(event -> simulation.restoreSnapShot(snapShot));
+        templates.getItems().add(item);
     }
 
     private void drawTrail(Trail trail) {
         if (trail == null)
             return;
         GraphicsContext gc = canvas.getGraphicsContext2D();
-        double scaleValue = scaleSlider.getValue();
-        for (Point point : trail)
-            gc.fillOval(point.x / scaleValue, point.y / scaleValue ,1, 1);
+        int ctr = 0;
+        for (Point point : trail) {
+            ctr++;
+            gc.setFill(Color.color(1,1,1, ctr/(double)trail.getLength()));
+            gc.fillOval(point.x - 1 / scale, point.y - 1 / scale, 1 / scale, 1 / scale);
+        }
     }
 
     private void redraw(Collection<? extends GravityObject> collection) {
         GraphicsContext gc = canvas.getGraphicsContext2D();
-        gc.clearRect(0,0,canvas.getWidth(),canvas.getHeight());
-        draw(collection);
+        Affine af = gc.getTransform();
+        Point begin = beginOfCoordinates();
+        gc.clearRect(begin.x,begin.y,canvas.getWidth()/af.getMxx(),canvas.getHeight()/af.getMyy());
+        gc.setFill(Color.BLACK);
+        gc.fillRect(-af.getTx()/af.getMxx(),-af.getTy()/af.getMyy(),canvas.getWidth()/af.getMxx(),canvas.getHeight()/af.getMyy());
+
+        drawObjects(collection);
     }
 
-    private void draw(Collection<? extends GravityObject> collection) {
+    private Point beginOfCoordinates() {
+        Affine af = canvas.getGraphicsContext2D().getTransform();
+        return new Point(-af.getTx()/af.getMxx(),-af.getTy()/af.getMyy());
+    }
+
+    private void drawObjects(Collection<? extends GravityObject> collection) {
         GraphicsContext gc = canvas.getGraphicsContext2D();
         for(GravityObject obj : collection) {
             if (obj instanceof GravitySystem)
-                draw(((GravitySystem) obj).getGravityObjects());
+                drawObjects(((GravitySystem) obj).getGravityObjects());
             else {
-                gc.setFill(Color.BLACK);
+                Trail path = simulation.getPath();
+                if (path != null)
+                    drawTrail(path);
                 if (showTrails.isSelected()) {
                     drawTrail(obj.getTrail());
-                    Trail path = simulation.getPath();
-                    if (path != null)
-                        drawTrail(path);
+
                 }
-                double scaleValue = scaleSlider.getValue();
-                Point point = new Point(obj.getCenter().x / scaleValue, obj.getCenter().y / scaleValue);
-                double currentRadius = obj.getRadius() / scaleValue;
+
+                Point point = new Point(obj.getCenter().x, obj.getCenter().y);
+                double currentRadius = obj.getRadius();
 
                 if (obj instanceof SimpleGravityObject.Static) {
+                    gc.setFill(Color.rgb(200,200,0));
                     gc.fillOval(point.x - currentRadius, point.y - currentRadius, 2 * currentRadius, 2 * currentRadius);
                 }
                 else {
                     gc.setFill(Color.STEELBLUE);
                     gc.fillOval(point.x - currentRadius, point.y - currentRadius, 2 * currentRadius, 2 * currentRadius);
-                    double scale = 100 / scaleValue;
-                    gc.strokeLine(obj.getCenter().x / scaleValue, obj.getCenter().y / scaleValue,
-                            obj.getCenter().x / scaleValue + obj.getAcceleration().x * scale, obj.getCenter().y / scaleValue + obj.getAcceleration().y * scale);
+                    double scale = 100;
+                    gc.strokeLine(obj.getCenter().x, obj.getCenter().y,
+                            obj.getCenter().x + obj.getAcceleration().x * scale, obj.getCenter().y + obj.getAcceleration().y * scale);
                 }
                 gc.setFont(Font.font(8));
-                gc.fillText(obj.getName(),(obj.getCenter().x + obj.getRadius() + 5)/scaleValue, obj.getCenter().y / scaleValue);
+                gc.fillText(obj.getName(),(obj.getCenter().x + obj.getRadius() + 5), obj.getCenter().y);
             }
         }
     }
@@ -270,22 +402,37 @@ public class Controller {
     }
 
     @FXML
-    private void changeTrailLength() {
-        try {
-            int size = Integer.parseInt(trailLength.getText());
-            simulation.changeTrailsLength(size);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    @FXML
     private void dump() {
         System.out.println("_______________DUMP_______________");
         int i = 1;
         for (GravityObject o : simulation.getObjects()) {
             System.out.println("#" + i++);
             System.out.println(o);
+        }
+    }
+
+    @FXML
+    private void saveTemplate() {
+        if (nameField.getText().isEmpty())
+            System.out.println("Введите имя!");
+        else {
+            for (MenuItem menuItem : templates.getItems())
+                if (menuItem.getText().equals(nameField.getText()))
+                    return;
+            SnapShot snapShot = simulation.makeSnapShot(nameField.getText());
+            snapShots.add(snapShot);
+            addMenuItem(snapShot);
+        }
+    }
+
+    public void saveAllTemplates() {
+        try (ObjectOutputStream outputStream = new ObjectOutputStream(new FileOutputStream(examplesFilename))) {
+            for (SnapShot snapShot : snapShots) {
+                outputStream.writeObject(snapShot);
+                System.out.println(snapShot);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }

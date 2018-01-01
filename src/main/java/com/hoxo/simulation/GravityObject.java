@@ -6,31 +6,90 @@ import com.hoxo.geometric.Vector2D;
 import java.io.Serializable;
 import java.util.Collection;
 
-/**
- * Created by Hoxo on 10.12.2017.
- */
-public interface GravityObject extends Destroyable, Serializable, Cloneable {
-    double getMass();
-    Point getCenter();
-    Vector2D getVelocity();
-    Vector2D getAcceleration();
-    Trail getTrail();
-    void setName(String name);
-    String getName();
-    int getRadius();
-    int getTrailLength();
+public abstract class GravityObject implements Destroyable, Serializable, Cloneable {
+    protected String name = "";
+    protected boolean destroyed = false;
+    protected transient Collider collider;
 
-    void moveTo(double x, double y);
-    void move(double deltaT);
-    void collide(GravityObject object);
-    Vector2D accelerationVectorTo(GravityObject object);
-    double range(GravityObject object);
-    void interactWith(Collection<? extends GravityObject> objects);
-    boolean collideWith(GravityObject object);
-    void setTrailLength(int length);
-    void setSatellite(GravityObject object, double apocentre, double pericentre);
+    public abstract double getMass();
+    public abstract Point getCenter();
+    public abstract Vector2D getVelocity();
+    public abstract Vector2D getAcceleration();
+    public abstract Trail getTrail();
 
-    boolean containsPoint(double x, double y);
+    public void setName(String name) {
+        this.name = name;
+    }
 
-    GravityObject clone();
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public void destroy() {
+        destroyed = true;
+    }
+    @Override
+    public boolean isDestroyed() {
+        return destroyed;
+    }
+    public abstract double getRadius();
+    public abstract int getTrailLength();
+    public abstract void moveTo(double x, double y);
+    public abstract void move(double deltaT);
+    public abstract void collide(GravityObject object);
+    public Vector2D accelerationVectorTo(GravityObject object) {
+        double R = range(object);
+        double M = object.getMass();
+        double a = (Constants.G * M)/(R*R);
+        Vector2D vec = Vector2D.vector(object.getCenter().x - this.getCenter().x , object.getCenter().y - this.getCenter().y);
+        vec.setLength(a);
+        return vec;
+    }
+    public double range(GravityObject object) {
+        return getCenter().distance(object.getCenter());
+    }
+
+    public void interactWith(Collection<? extends GravityObject> objects) {
+        if (isDestroyed())
+            return;
+        for (GravityObject object : objects)
+            if (object != this && !object.isDestroyed())
+                if (collideWith(object)) {
+                    collide(object);
+                    if (isDestroyed())
+                        return;
+                }
+    }
+
+    public void setSatellite(GravityObject object, double apocentre, double pericentre) {
+        double ellipseA = (apocentre + getRadius() * 2 + pericentre)/2,
+                r = apocentre + getRadius(), mu = Constants.G * getMass(),
+                v = Math.sqrt(mu * (2/r - 1/ellipseA));
+
+        object.moveTo(getCenter().x, getCenter().y  + getRadius() + apocentre);
+        object.getVelocity().x = 1;
+        object.getVelocity().y = 0;
+        object.getVelocity().setLength(v);
+        object.getVelocity().add(getVelocity());
+    }
+
+    public void recalculateVelocityVector(double deltaT) {
+        getVelocity().x += getAcceleration().x * deltaT;
+        getVelocity().y += getAcceleration().y * deltaT;
+    }
+    public abstract void recalculateAccelerationVector(Collection<? extends GravityObject> objects);
+    public abstract boolean collideWith(GravityObject object);
+    public abstract void setTrailLength(int length);
+    public boolean containsPoint(double x, double y) {
+        return getCenter().distance(x, y) < getRadius();
+    }
+    public abstract GravityObject clone();
+
+    @Override
+    public String toString() {
+        return getClass().getCanonicalName() + ": name = \'" + name + "\' | destroyed = " + destroyed +
+                " | mass = " + getMass() + " | radius = " + getRadius() + " | velocity = " + getVelocity() +
+                " | acceleration = " + getAcceleration() + " | center = " + getCenter();
+    }
 }

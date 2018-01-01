@@ -8,14 +8,12 @@ import java.util.Formatter;
 import java.util.Locale;
 
 
-public class SimpleGravityObject implements GravityObject, Cloneable {
+public class SimpleGravityObject extends GravityObject {
     protected Point center;
     protected Vector2D velocity, acceleration;
     protected double mass;
-    protected int radius;
-    protected transient Trail trail;
-    protected String name = "";
-    protected boolean destroyed = false;
+    protected double radius;
+    protected transient Trail trail = new Trail(1000);
 
     public Trail getTrail() {
         if (trail == null) {
@@ -28,22 +26,31 @@ public class SimpleGravityObject implements GravityObject, Cloneable {
         trail.setLength(len);
     }
 
-    public SimpleGravityObject(double x, double y, Vector2D velocity, int radius, double mass) {
+    public SimpleGravityObject(double x, double y, Vector2D velocity, double radius, double mass) {
         trail = new Trail(1000);
         this.center = new Point(x,y);
         this.mass = mass;
         this.velocity = velocity;
         this.acceleration = Vector2D.nullVector();
         this.radius = radius;
+        collider = Colliders.simpleGravityObjectCollider();
     }
 
     public SimpleGravityObject() {
         trail = new Trail(1000);
+        collider = Colliders.simpleGravityObjectCollider();
     }
 
     @Override
     public GravityObject clone() {
-        return new SimpleGravityObject(center.x, center.y,new Vector2D(velocity.x,velocity.y),radius,mass);
+        SimpleGravityObject sgo = new SimpleGravityObject(center.x, center.y,new Vector2D(velocity.x,velocity.y),radius,mass);
+        sgo.name = name;
+//        System.out.println(trail);
+//        sgo.trail = new Trail(trail.getLength());
+//        for (Point point : trail) {
+//            sgo.trail.addPoint(point);
+//        }
+        return sgo;
     }
 
     @Override
@@ -67,7 +74,7 @@ public class SimpleGravityObject implements GravityObject, Cloneable {
     }
 
     @Override
-    public int getRadius() {
+    public double getRadius() {
         return radius;
     }
 
@@ -87,52 +94,12 @@ public class SimpleGravityObject implements GravityObject, Cloneable {
     }
 
     @Override
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    @Override
-    public String getName() {
-        return name;
-    }
-
-    @Override
-    public boolean containsPoint(double x, double y) {
-        return getCenter().distance(x, y) < getRadius();
-    }
-
-    @Override
     public void move(double deltaT) {
         double x = getCenter().x,
                 y = getCenter().y;
+//        recalculateVelocityVector(deltaT);
         trail.addPoint(x, y);
-        velocity.x += acceleration.x * deltaT;
-        velocity.y += acceleration.y * deltaT;
-
         center.move(deltaT * velocity.x, deltaT * velocity.y);
-    }
-
-    @Override
-    public Vector2D accelerationVectorTo(GravityObject object) {
-        double R = range(object);
-        double M = object.getMass();
-        double a = (Util.G * M)/(R*R);
-        Vector2D vec = Vector2D.vector(object.getCenter().x - this.getCenter().x , object.getCenter().y - this.getCenter().y);
-        vec.setLength(a);
-        return vec;
-    }
-
-    @Override
-    public double range(GravityObject object) {
-        return center.distance(object.getCenter());
-    }
-
-    @Override
-    public void setSatellite(GravityObject object, double apocentre, double pericentre) {
-        object.moveTo(getCenter().x, getCenter().y + apocentre);
-        object.getVelocity().x = 1;
-        object.getVelocity().y = 0;
-        object.getVelocity().setLength(Math.sqrt(Util.G * getMass() / (apocentre + getRadius())));
     }
 
     @Override
@@ -141,52 +108,17 @@ public class SimpleGravityObject implements GravityObject, Cloneable {
     }
 
     @Override
-    public void interactWith(Collection<? extends GravityObject> objects) {
-        if (isDestroyed())
-            return;
+    public void recalculateAccelerationVector(Collection<? extends GravityObject> objects) {
         acceleration.x = 0;
         acceleration.y = 0;
         for (GravityObject object : objects)
             if (object != this && !object.isDestroyed())
-                if (!collideWith(object))
-                    acceleration.add(accelerationVectorTo(object));
-                else
-                    collide(object);
+                acceleration.add(accelerationVectorTo(object));
 
     }
 
     public void collide(GravityObject object) {
-        if (object instanceof SimpleGravityObject) {
-            if (object instanceof Static) {
-                ((Static) object).mass += mass;
-            } else {
-                double massSum = getMass() + object.getMass();
-                double e1 = getMass() * Math.pow(getRadius(), 2) / 2;
-                double e2 = object.getMass() * Math.pow(object.getRadius(), 2) / 2;
-
-                double _x = (getVelocity().x * getMass() + object.getMass() * object.getVelocity().x) / massSum,
-                        _y = (getVelocity().y * getMass() + object.getMass() * object.getVelocity().y) / massSum;
-                SimpleGravityObject sgo;
-                //Point center = new Point((getCenter().x + object.getCenter().x) / 2,  (getCenter().y + object.getCenter().y) / 2);
-                if (e1 > e2) {
-                    sgo = this;
-                    object.destroy();
-                } else {
-                    sgo = ((SimpleGravityObject) object);
-                    destroy();
-                }
-                sgo.velocity.x = _x;
-                sgo.velocity.y = _y;
-//                sgo.center = center;
-
-                double density = sgo.mass / (Math.pow(sgo.radius, 2));
-
-                sgo.mass = massSum;
-
-
-                sgo.radius = (int) Math.sqrt(massSum / density);
-            }
-        }
+        collider.collide(this, object);
     }
 
     @Override
@@ -196,20 +128,27 @@ public class SimpleGravityObject implements GravityObject, Cloneable {
 
     @Override
     public String toString() {
-        Formatter formatter = new Formatter(Locale.ENGLISH);
-        return formatter.format("Gravity object [% .1f, % .1f] Velocity: [% .3f, % .3f] Acceleration: [% .6f, % .6f]",
-                center.x, center.y,velocity.x,velocity.y, acceleration.x, acceleration.y).toString();
+        return super.toString();
     }
 
     public static class Static extends SimpleGravityObject {
 
-        public Static(double x, double y, int radius, double mass) {
+        Static() {
+            collider = Colliders.staticGravityObjectCollider();
+            trail = new Trail(1000);
+        }
+
+        public Static(double x, double y, double radius, double mass) {
             super(x, y, Vector2D.nullVector(), radius, mass);
+            collider = Colliders.staticGravityObjectCollider();
             trail.setLength(0);
         }
 
         @Override
         public void interactWith(Collection<? extends GravityObject> objects) {}
+
+        @Override
+        public void recalculateAccelerationVector(Collection<? extends GravityObject> objects) {}
 
         @Override
         public Vector2D getVelocity() {
