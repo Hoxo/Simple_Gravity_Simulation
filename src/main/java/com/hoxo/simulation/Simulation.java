@@ -1,5 +1,6 @@
 package com.hoxo.simulation;
 
+import com.hoxo.geometric.Point;
 import com.hoxo.geometric.Vector2D;
 
 import java.util.LinkedList;
@@ -91,7 +92,7 @@ public class Simulation {
     }
 
     public void tick(double delta) {
-        destroyLostObjects();
+//        destroyLostObjects();
         addOutOfGravitySystemsObjects();
         for (GravityObject object : objects)
             object.interactWith(objects);
@@ -140,6 +141,39 @@ public class Simulation {
                 destroyed.add(object);
         objects.removeAll(destroyed);
 
+    }
+
+    public Vector2D summaryImpulse() {
+        Vector2D sum = Vector2D.nullVector();
+        for (GravityObject object : objects) {
+            Vector2D vel = object.getVelocity().clone();
+            vel.scaleLength(object.getMass());
+            sum.add(vel);
+        }
+        return sum;
+    }
+
+    public double summaryEnergy() {
+        double e = 0, v, m;
+        for (GravityObject object : objects) {
+            v = object.getVelocity().length();
+            m = object.getMass();
+            e += m * v * v;
+        }
+        return e;
+    }
+
+    public Point centerOfMass() {
+        Point p = new Point(0,0);
+        double xmsum = 0, ymsum = 0, mass = 0;
+        for (GravityObject object : objects) {
+            mass += object.getMass();
+            xmsum += object.getMass() * object.getCenter().x;
+            ymsum += object.getMass() * object.getCenter().y;
+        }
+        p.x = xmsum / mass;
+        p.y = ymsum / mass;
+        return p;
     }
 
     private void destroyLostObjects() {

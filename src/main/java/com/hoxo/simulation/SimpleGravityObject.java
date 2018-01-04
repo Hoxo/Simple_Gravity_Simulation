@@ -33,7 +33,9 @@ public class SimpleGravityObject extends GravityObject {
         this.velocity = velocity;
         this.acceleration = Vector2D.nullVector();
         this.radius = radius;
-        collider = Colliders.simpleGravityObjectCollider();
+//        collider = Colliders.simpleGravityObjectCollider();
+        collider = new OffCollider();
+
     }
 
     public SimpleGravityObject() {

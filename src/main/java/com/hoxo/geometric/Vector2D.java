@@ -84,6 +84,11 @@ public class Vector2D implements Serializable {
     }
 
     @Override
+    public Vector2D clone() {
+        return new Vector2D(x,y);
+    }
+
+    @Override
     public String toString() {
         return "vector: [" + x + ", " + y + "]";
     }

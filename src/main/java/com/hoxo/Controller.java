@@ -144,6 +144,8 @@ public class Controller {
         }
     }
 
+    Point begin;
+
     public Controller() {
         stars = new LinkedList<>();
         keyCommandMap.put(KeyCode.MINUS, () -> makeScale(DEC_SCALE_VALUE));
@@ -165,10 +167,12 @@ public class Controller {
                 time += delta.get();
                 if (simulation.hasFocused())
                     setCenterTo(simulation.getFocused().getCenter());
-//                if (mouseEventAdapter.pressed && mouseEventAdapter.created)
-//                    if (mouseEventAdapter.currentVelocity != null)
-//                        simulation.calculatePath(mouseEventAdapter.point.getX(), mouseEventAdapter.point.getY(), mouseEventAdapter.currentVelocity, radius.getValue(), delta.get());
                 simulation.tick(delta.get());
+                if (time == 1)
+                    begin = simulation.centerOfMass();
+
+                System.out.println("center distancing " + begin.distance(simulation.centerOfMass()));
+                System.out.println("impulse " + simulation.summaryImpulse().length());
                 redraw(simulation.getObjects());
             }
         };
@@ -176,18 +180,28 @@ public class Controller {
 
         // EXPERIMENTS
 
-        SimpleGravityObject sun, earth, moon;
-        sun = new SimpleGravityObject.Static(0,0, EARTH_RADIUS * SUN_RELATIVE_RADIUS, EARTH_MASS * SUN_RELATIVE_MASS);
-        sun.setName("SUN");
-        earth = new SimpleGravityObject(0,0,Vector2D.nullVector(), EARTH_RADIUS,EARTH_MASS);
-        earth.setName("EARTH");
-        moon = new SimpleGravityObject(0,0,Vector2D.nullVector(),EARTH_RADIUS * MOON_RELATIVE_RADIUS, EARTH_MASS * MOON_RELATIVE_MASS);
-        moon.setName("MOON");
-        sun.setSatellite(earth,1000, 30);
-//        earth.setSatellite(moon,50,50);
-//        earth.setSatellite(moon,200, 0);
-        simulation.add(earth);
-        simulation.add(sun);
+            //#1 - ORBITS
+
+//        SimpleGravityObject sun, earth, moon;
+////        sun = new SimpleGravityObject.Static(0,0, EARTH_RADIUS * SUN_RELATIVE_RADIUS, EARTH_MASS * SUN_RELATIVE_MASS);
+//        sun = new SimpleGravityObject(0,0, Vector2D.nullVector(), EARTH_RADIUS * SUN_RELATIVE_RADIUS, EARTH_MASS * SUN_RELATIVE_MASS);
+//        sun.setName("SUN");
+//        earth = new SimpleGravityObject(0,0,Vector2D.nullVector(), EARTH_RADIUS,EARTH_MASS);
+//        earth.setName("EARTH");
+//        moon = new SimpleGravityObject(0,0,Vector2D.nullVector(),EARTH_RADIUS * MOON_RELATIVE_RADIUS, EARTH_MASS * MOON_RELATIVE_MASS);
+//        moon.setName("MOON");
+//        sun.setSatellite(earth,1000, 30);
+////        earth.setSatellite(moon,50,50);
+////        earth.setSatellite(moon,200, 0);
+//        simulation.add(earth);
+//        simulation.add(sun);
+
+            //#2 - CHECK SUMMARY IMPULSE
+
+        double x0 = 0, y0 = 0, k = 10000;
+        for (int i = 0; i < 100; i++) {
+            simulation.add(new SimpleGravityObject(x0 + Math.random() * k, y0 + Math.random() * k, Vector2D.nullVector(), 10, 100));
+        }
 //        simulation.add(moon);
 
 
@@ -332,7 +346,6 @@ public class Controller {
         gc.clearRect(begin.x,begin.y,canvas.getWidth()/af.getMxx(),canvas.getHeight()/af.getMyy());
         gc.setFill(Color.BLACK);
         gc.fillRect(-af.getTx()/af.getMxx(),-af.getTy()/af.getMyy(),canvas.getWidth()/af.getMxx(),canvas.getHeight()/af.getMyy());
-
         drawObjects(collection);
     }
 
@@ -373,6 +386,9 @@ public class Controller {
                 gc.fillText(obj.getName(),(obj.getCenter().x + obj.getRadius() + 5), obj.getCenter().y);
             }
         }
+        Point p = simulation.centerOfMass();
+        gc.setFill(Color.WHITE);
+        gc.fillOval(p.x,p.y,1,1);
     }
 
     @FXML
