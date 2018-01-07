@@ -168,43 +168,24 @@ public class Controller {
                 if (simulation.hasFocused())
                     setCenterTo(simulation.getFocused().getCenter());
                 simulation.tick(delta.get());
+                redraw(simulation.getObjects());
+
                 if (time == 1)
                     begin = simulation.centerOfMass();
-
                 System.out.println("center distancing " + begin.distance(simulation.centerOfMass()));
                 System.out.println("impulse " + simulation.summaryImpulse().length());
-                redraw(simulation.getObjects());
+                System.out.println(simulation.summaryImpulse());
             }
         };
         simulation = new Simulation(new SimpleGravityObjectFactory());
+        experiment();
+    }
 
-        // EXPERIMENTS
-
-            //#1 - ORBITS
-
-//        SimpleGravityObject sun, earth, moon;
-////        sun = new SimpleGravityObject.Static(0,0, EARTH_RADIUS * SUN_RELATIVE_RADIUS, EARTH_MASS * SUN_RELATIVE_MASS);
-//        sun = new SimpleGravityObject(0,0, Vector2D.nullVector(), EARTH_RADIUS * SUN_RELATIVE_RADIUS, EARTH_MASS * SUN_RELATIVE_MASS);
-//        sun.setName("SUN");
-//        earth = new SimpleGravityObject(0,0,Vector2D.nullVector(), EARTH_RADIUS,EARTH_MASS);
-//        earth.setName("EARTH");
-//        moon = new SimpleGravityObject(0,0,Vector2D.nullVector(),EARTH_RADIUS * MOON_RELATIVE_RADIUS, EARTH_MASS * MOON_RELATIVE_MASS);
-//        moon.setName("MOON");
-//        sun.setSatellite(earth,1000, 30);
-////        earth.setSatellite(moon,50,50);
-////        earth.setSatellite(moon,200, 0);
-//        simulation.add(earth);
-//        simulation.add(sun);
-
-            //#2 - CHECK SUMMARY IMPULSE
-
+    public void experiment() {
         double x0 = 0, y0 = 0, k = 10000;
-        for (int i = 0; i < 100; i++) {
-            simulation.add(new SimpleGravityObject(x0 + Math.random() * k, y0 + Math.random() * k, Vector2D.nullVector(), 10, 100));
+        for (int i = 0; i < 10; i++) {
+            simulation.add(new SimpleGravityObject(x0 + Math.random() * k, y0 + Math.random() * k, Vector2D.nullVector(), 10, 10000));
         }
-//        simulation.add(moon);
-
-
     }
 
     public void initialize() {
@@ -327,17 +308,24 @@ public class Controller {
         templates.getItems().add(item);
     }
 
-    private void drawTrail(Trail trail) {
+    private void drawTrail(Trail trail, Color color) {
+
         if (trail == null)
             return;
         GraphicsContext gc = canvas.getGraphicsContext2D();
         int ctr = 0;
         for (Point point : trail) {
             ctr++;
-            gc.setFill(Color.color(1,1,1, ctr/(double)trail.getLength()));
+            gc.setFill(Color.color(color.getRed(),color.getGreen(),color.getBlue(), ctr/(double)trail.getLength()));
             gc.fillOval(point.x - 1 / scale, point.y - 1 / scale, 1 / scale, 1 / scale);
         }
     }
+
+    private static final Color TRAIL_COLOR = Color.WHITE;
+    private static final Color SELECTED_TRAIL_COLOR = Color.GREEN;
+    private static final Color CALCULATED_TRAIL_COLOR = Color.PURPLE;
+    private static final Color STATIC_OBJECT_COLOR = Color.rgb(200,200,0);
+    private static final Color SIMPLE_OBJECT_COLOR = Color.STEELBLUE;
 
     private void redraw(Collection<? extends GravityObject> collection) {
         GraphicsContext gc = canvas.getGraphicsContext2D();
@@ -356,27 +344,20 @@ public class Controller {
 
     private void drawObjects(Collection<? extends GravityObject> collection) {
         GraphicsContext gc = canvas.getGraphicsContext2D();
+        drawTrails(collection);
         for(GravityObject obj : collection) {
             if (obj instanceof GravitySystem)
                 drawObjects(((GravitySystem) obj).getGravityObjects());
             else {
-                Trail path = simulation.getPath();
-                if (path != null)
-                    drawTrail(path);
-                if (showTrails.isSelected()) {
-                    drawTrail(obj.getTrail());
-
-                }
-
                 Point point = new Point(obj.getCenter().x, obj.getCenter().y);
                 double currentRadius = obj.getRadius();
 
                 if (obj instanceof SimpleGravityObject.Static) {
-                    gc.setFill(Color.rgb(200,200,0));
+                    gc.setFill(STATIC_OBJECT_COLOR);
                     gc.fillOval(point.x - currentRadius, point.y - currentRadius, 2 * currentRadius, 2 * currentRadius);
                 }
                 else {
-                    gc.setFill(Color.STEELBLUE);
+                    gc.setFill(SIMPLE_OBJECT_COLOR);
                     gc.fillOval(point.x - currentRadius, point.y - currentRadius, 2 * currentRadius, 2 * currentRadius);
                     double scale = 100;
                     gc.strokeLine(obj.getCenter().x, obj.getCenter().y,
@@ -386,9 +367,27 @@ public class Controller {
                 gc.fillText(obj.getName(),(obj.getCenter().x + obj.getRadius() + 5), obj.getCenter().y);
             }
         }
+        drawCenterOfMass(gc);
+    }
+
+    private void drawTrails(Collection<? extends GravityObject> collection) {
+        if (showTrails.isSelected()) {
+            for (GravityObject obj : collection)
+                drawTrail(obj.getTrail(), TRAIL_COLOR);
+            if (simulation.hasFocused())
+                drawTrail(simulation.getFocused().getTrail(), SELECTED_TRAIL_COLOR);
+        }
+
+
+        Trail path = simulation.getPath();
+        if (path != null)
+            drawTrail(path, CALCULATED_TRAIL_COLOR);
+    }
+
+    private void drawCenterOfMass(GraphicsContext gc) {
         Point p = simulation.centerOfMass();
-        gc.setFill(Color.WHITE);
-        gc.fillOval(p.x,p.y,1,1);
+        gc.setFill(Color.RED);
+        gc.fillOval(p.x - 1/scale, p.y - 1/scale, 1/scale, 1/scale);
     }
 
     @FXML

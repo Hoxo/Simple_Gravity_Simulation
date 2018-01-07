@@ -4,8 +4,6 @@ import com.hoxo.geometric.Point;
 import com.hoxo.geometric.Vector2D;
 
 import java.util.Collection;
-import java.util.Formatter;
-import java.util.Locale;
 
 
 public class SimpleGravityObject extends GravityObject {
@@ -34,7 +32,7 @@ public class SimpleGravityObject extends GravityObject {
         this.acceleration = Vector2D.nullVector();
         this.radius = radius;
 //        collider = Colliders.simpleGravityObjectCollider();
-        collider = new OffCollider();
+        collider = Colliders.repulsiveCollider();
 
     }
 
@@ -145,9 +143,6 @@ public class SimpleGravityObject extends GravityObject {
             collider = Colliders.staticGravityObjectCollider();
             trail.setLength(0);
         }
-
-        @Override
-        public void interactWith(Collection<? extends GravityObject> objects) {}
 
         @Override
         public void recalculateAccelerationVector(Collection<? extends GravityObject> objects) {}

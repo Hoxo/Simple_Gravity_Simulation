@@ -94,16 +94,17 @@ public class Simulation {
     public void tick(double delta) {
 //        destroyLostObjects();
         addOutOfGravitySystemsObjects();
-        for (GravityObject object : objects)
-            object.interactWith(objects);
+//        calculateInteractions();
         cleanup();
         if (delta > 0) {
             recalculateAllAccelerationVectors();
+            calculateInteractions();
             recalculateAllVelocityVectors(delta);
             moveAll(delta);
         } else {
             moveAll(delta);
             recalculateAllAccelerationVectors();
+            calculateInteractions();
             recalculateAllVelocityVectors(delta);
         }
     }
@@ -111,6 +112,11 @@ public class Simulation {
     private void moveAll(double delta) {
         for (GravityObject object : objects)
             object.move(delta);
+    }
+
+    private void calculateInteractions() {
+        for (GravityObject object : objects)
+            object.interactWith(objects);
     }
 
     private void recalculateAllVelocityVectors(double delta) {

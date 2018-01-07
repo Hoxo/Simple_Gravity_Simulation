@@ -1,6 +1,7 @@
 package com.hoxo.simulation;
 
-public class StaticGOCollider implements Collider {
+public class  StaticGOCollider implements Collider {
+
     @Override
     public void collide(GravityObject o1, GravityObject o2) {
         SimpleGravityObject.Static _this = ((SimpleGravityObject.Static) o1);

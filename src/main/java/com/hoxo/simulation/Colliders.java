@@ -15,4 +15,12 @@ public class Colliders {
         return new GravitySystemCollider();
     }
 
+    public static Collider nullCollider() {
+        return new NullCollider();
+    }
+
+    public static Collider repulsiveCollider() {
+        return new RepulsiveCollider();
+    }
+
 }
