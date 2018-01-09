@@ -8,7 +8,6 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
-import javafx.geometry.Point2D;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.*;
@@ -20,6 +19,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.transform.Affine;
 import javafx.util.StringConverter;
+
 import java.io.*;
 import java.util.*;
 
@@ -54,26 +54,14 @@ public class Controller {
     @FXML
     private TextField nameField;
 
-    static double EARTH_RADIUS = 10;
-    static double EARTH_MASS = 100;
-    static double EARTH_ORBIT = 1000;
-    static double MOON_RELATIVE_RADIUS = 0.273;
-    static double MOON_RELATIVE_MASS = 0.0123;
-    static double MOON_RELATIVE_ORBIT = 62;
-    static double SUN_RELATIVE_RADIUS = 109;
-    static double SUN_RELATIVE_MASS = 1000;
-
-
     private static final double VELOCITY_SCALE = 0.02;
     private static final double SHIFT_VALUE = 10;
     private static final double INC_SCALE_VALUE = 1.1;
     private static final double DEC_SCALE_VALUE = 1/INC_SCALE_VALUE;
-    private static final int STARS_AMOUNT = 1000;
     private static final String examplesFilename = "examples.txt";
 
     private List<SnapShot> snapShots = new LinkedList<>();
     private Map<KeyCode, Runnable> keyCommandMap = new HashMap<>();
-    private List<Point> stars;
     private MouseEventAdapter mouseEventAdapter;
     private volatile SimpleDoubleProperty delta;
     private Simulation simulation;
@@ -84,48 +72,53 @@ public class Controller {
 
     private class MouseEventAdapter {
         public final EventHandler<? super MouseEvent> mousePressed, mouseReleased, mouseDragged;
-        private Point2D point;
-        private volatile boolean pressed, created;
-        private Vector2D currentVelocity;
+        private Point startPosition;
+        private MouseEvent startPositionEvent;
+        private volatile boolean pressed, creating;
+        private Vector2D currentVelocity = Vector2D.nullVector();
 
         public MouseEventAdapter() {
 
             mouseDragged = event -> {
                 if (pressed) {
-                    if (created) {
+                    if (creating) {
+                        if (simulation.hasFocused())
+                            startPosition = getCursorPosition(startPositionEvent);
                         currentVelocity = getVelocityVector(event);
-                        simulation.calculatePath(point.getX(),point.getY(),getVelocityVector(event), radius.getValue(), delta.get());
+                        calculateObjectPath(startPosition, currentVelocity);
                     }
                     else
                         if (!simulation.hasFocused()) {
                             Vector2D shift = getVelocityVector(event);
                             shift.scaleLength(1/VELOCITY_SCALE);
                             makeShift(-shift.x, - shift.y);
-
                         }
-//                    simulation.calculatePath(point.getX(),point.getY(),getVelocityVector(event), (int)radius.getValue(), delta.get());
                 }
             };
+
             mousePressed = event -> {
                 pressed = true;
-                Affine affine = canvas.getGraphicsContext2D().getTransform();
-                point = new Point2D((event.getX() - affine.getTx())/affine.getMxx() ,(event.getY() - affine.getTy())/affine.getMyy());
+                startPositionEvent = event;
+                startPosition = getCursorPosition(event);
                 if (event.getButton() == MouseButton.SECONDARY)
-                    created = true;
+                    creating = true;
                 else
-                    simulation.focus(point.getX(), point.getY());
-
+                    simulation.focus(startPosition.x, startPosition.y);
             };
+
             mouseReleased = event -> {
                 pressed = false;
-                currentVelocity = null;
+                currentVelocity.x = 0;
+                currentVelocity.y = 0;
+                if (simulation.hasFocused())
+                    startPosition = getCursorPosition(startPositionEvent);
                 simulation.removePath();
-                if (created) {
+                if (creating) {
                     if (isStatic.isSelected())
-                        simulation.addStaticGravityObject(point.getX(),point.getY(),(int)radius.getValue());
+                        simulation.addStaticGravityObject(startPosition.x, startPosition.y,(int)radius.getValue());
                     else
-                        simulation.addGravityObject(point.getX(),point.getY(),getVelocityVector(event),(int)radius.getValue());
-                    created = false;
+                        simulation.addGravityObject(startPosition.x, startPosition.y,getVelocityVector(event),(int)radius.getValue());
+                    creating = false;
                 }
 
             };
@@ -133,21 +126,19 @@ public class Controller {
 
         private Vector2D getVelocityVector(MouseEvent event) {
             Affine affine = canvas.getGraphicsContext2D().getTransform();
-            return new Vector2D(VELOCITY_SCALE * (point.getX() - (event.getX() - affine.getTx())/affine.getMxx()),
-                        VELOCITY_SCALE * (point.getY() - (event.getY() - affine.getTy())/affine.getMyy()));
-
-        }
-
-        public Point getCurrentMouseCoordinates(MouseEvent event) {
-            Affine affine = canvas.getGraphicsContext2D().getTransform();
-            return new Point((event.getX() - affine.getTx())/affine.getMxx() ,(event.getY() - affine.getTy())/affine.getMyy());
+            Vector2D velocity = new Vector2D(VELOCITY_SCALE * (startPosition.x - (event.getX() - affine.getTx())/affine.getMxx()),
+                        VELOCITY_SCALE * (startPosition.y - (event.getY() - affine.getTy())/affine.getMyy()));
+            if (simulation.hasFocused())
+                velocity.add(simulation.getFocused().getVelocity());
+            return velocity;
         }
     }
 
-    Point begin;
+    private void calculateObjectPath(Point start, Vector2D velocity) {
+        simulation.calculatePath(start.x, start.y, velocity, radius.getValue(), delta.get());
+    }
 
     public Controller() {
-        stars = new LinkedList<>();
         keyCommandMap.put(KeyCode.MINUS, () -> makeScale(DEC_SCALE_VALUE));
         keyCommandMap.put(KeyCode.EQUALS, () -> makeScale(INC_SCALE_VALUE));
         keyCommandMap.put(KeyCode.RIGHT, () -> makeShift(-SHIFT_VALUE/scale, 0));
@@ -169,19 +160,13 @@ public class Controller {
                     setCenterTo(simulation.getFocused().getCenter());
                 simulation.tick(delta.get());
                 redraw(simulation.getObjects());
-
-                if (time == 1)
-                    begin = simulation.centerOfMass();
-                System.out.println("center distancing " + begin.distance(simulation.centerOfMass()));
-                System.out.println("impulse " + simulation.summaryImpulse().length());
-                System.out.println(simulation.summaryImpulse());
             }
         };
         simulation = new Simulation(new SimpleGravityObjectFactory());
         experiment();
     }
 
-    public void experiment() {
+    private void experiment() {
         double x0 = 0, y0 = 0, k = 10000;
         for (int i = 0; i < 10; i++) {
             simulation.add(new SimpleGravityObject(x0 + Math.random() * k, y0 + Math.random() * k, Vector2D.nullVector(), 10, 10000));
@@ -257,6 +242,11 @@ public class Controller {
         return new Point((-affine.getTx() + canvas.getWidth()/2)/affine.getMxx(), (-affine.getTy() + canvas.getHeight()/2)/affine.getMyy());
     }
 
+    private Point getCursorPosition(MouseEvent event) {
+        Affine affine = canvas.getGraphicsContext2D().getTransform();
+        return new Point((event.getX() - affine.getTx())/affine.getMxx() ,(event.getY() - affine.getTy())/affine.getMyy());
+    }
+
     private void setCenterTo(Point center) {
         GraphicsContext gc = canvas.getGraphicsContext2D();
         Affine affine = gc.getTransform();
@@ -308,19 +298,6 @@ public class Controller {
         templates.getItems().add(item);
     }
 
-    private void drawTrail(Trail trail, Color color) {
-
-        if (trail == null)
-            return;
-        GraphicsContext gc = canvas.getGraphicsContext2D();
-        int ctr = 0;
-        for (Point point : trail) {
-            ctr++;
-            gc.setFill(Color.color(color.getRed(),color.getGreen(),color.getBlue(), ctr/(double)trail.getLength()));
-            gc.fillOval(point.x - 1 / scale, point.y - 1 / scale, 1 / scale, 1 / scale);
-        }
-    }
-
     private static final Color TRAIL_COLOR = Color.WHITE;
     private static final Color SELECTED_TRAIL_COLOR = Color.GREEN;
     private static final Color CALCULATED_TRAIL_COLOR = Color.PURPLE;
@@ -335,6 +312,21 @@ public class Controller {
         gc.setFill(Color.BLACK);
         gc.fillRect(-af.getTx()/af.getMxx(),-af.getTy()/af.getMyy(),canvas.getWidth()/af.getMxx(),canvas.getHeight()/af.getMyy());
         drawObjects(collection);
+        drawInfo();
+    }
+
+    private void drawInfo() {
+        drawScalablePoint(simulation.centerOfMass(), Color.RED);
+        if (mouseEventAdapter.creating) {
+            Point pos = simulation.hasFocused() ? getCursorPosition(mouseEventAdapter.startPositionEvent) : mouseEventAdapter.startPosition;
+            drawScalablePoint(pos, Color.AQUAMARINE);
+        }
+    }
+
+    private void drawScalablePoint(Point p, Color fill) {
+        GraphicsContext gc = canvas.getGraphicsContext2D();
+        gc.setFill(fill);
+        gc.fillOval(p.x - 1/scale, p.y - 1/scale, 1/scale, 1/scale);
     }
 
     private Point beginOfCoordinates() {
@@ -367,27 +359,31 @@ public class Controller {
                 gc.fillText(obj.getName(),(obj.getCenter().x + obj.getRadius() + 5), obj.getCenter().y);
             }
         }
-        drawCenterOfMass(gc);
     }
 
     private void drawTrails(Collection<? extends GravityObject> collection) {
         if (showTrails.isSelected()) {
             for (GravityObject obj : collection)
-                drawTrail(obj.getTrail(), TRAIL_COLOR);
+                drawTrail(obj.getTrail().iterator(), obj.getTrailLength(), TRAIL_COLOR);
             if (simulation.hasFocused())
-                drawTrail(simulation.getFocused().getTrail(), SELECTED_TRAIL_COLOR);
+                drawTrail(simulation.getFocused().getTrail().iterator(), simulation.getFocused().getTrailLength(), SELECTED_TRAIL_COLOR);
         }
-
-
         Trail path = simulation.getPath();
+
         if (path != null)
-            drawTrail(path, CALCULATED_TRAIL_COLOR);
+            drawTrail(path.descendingIterator(), path.getLength(), CALCULATED_TRAIL_COLOR);
     }
 
-    private void drawCenterOfMass(GraphicsContext gc) {
-        Point p = simulation.centerOfMass();
-        gc.setFill(Color.RED);
-        gc.fillOval(p.x - 1/scale, p.y - 1/scale, 1/scale, 1/scale);
+
+    private void drawTrail(Iterator<Point> iterator, int length, Color color) {
+        GraphicsContext gc = canvas.getGraphicsContext2D();
+        int ctr = 0;
+        while (iterator.hasNext()) {
+            Point point = iterator.next();
+            ctr++;
+            gc.setFill(Color.color(color.getRed(),color.getGreen(),color.getBlue(), ctr/(double)length));
+            gc.fillOval(point.x - 1 / scale, point.y - 1 / scale, 1 / scale, 1 / scale);
+        }
     }
 
     @FXML

@@ -135,13 +135,13 @@ public class SimpleGravityObject extends GravityObject {
 
         Static() {
             collider = Colliders.staticGravityObjectCollider();
-            trail = new Trail(1000);
+            trail = new Trail.Null();
         }
 
         public Static(double x, double y, double radius, double mass) {
             super(x, y, Vector2D.nullVector(), radius, mass);
             collider = Colliders.staticGravityObjectCollider();
-            trail.setLength(0);
+            trail = new Trail.Null();
         }
 
         @Override
@@ -159,12 +159,12 @@ public class SimpleGravityObject extends GravityObject {
 
         @Override
         public int getTrailLength() {
-            return 0;
+            return trail.getLength();
         }
 
         @Override
         public Trail getTrail() {
-            return null;
+            return trail;
         }
 
         @Override

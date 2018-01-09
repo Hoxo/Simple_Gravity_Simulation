@@ -2,7 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/Planets.iml" filepath="$PROJECT_DIR$/Planets.iml" />
+      <module fileurl="file://C:\Users\Hoxton\IdeaProjects\Simple_Gravity_Simulation\Planets.iml" filepath="C:\Users\Hoxton\IdeaProjects\Simple_Gravity_Simulation\Planets.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/Simple_Gravity_Simulation.iml" filepath="$PROJECT_DIR$/.idea/Simple_Gravity_Simulation.iml" />
     </modules>
   </component>
 </project>

@@ -7,10 +7,12 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="Planets" />
+        <module name="Simple_Gravity_Simulation" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="Planets" target="1.8" />
+      <module name="Simple_Gravity_Simulation" target="1.8" />
     </bytecodeTargetLevel>
   </component>
 </project>

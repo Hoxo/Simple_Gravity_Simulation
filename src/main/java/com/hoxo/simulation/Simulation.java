@@ -14,7 +14,7 @@ public class Simulation {
     private GravityObject focused;
 
     private static final int        LIMIT_RANGE = 100000;
-    private static final int        CALCULATED_PATH_LENGTH = 10000;
+    private static final int        CALCULATED_PATH_LENGTH = 1000;
 
 
 
@@ -195,6 +195,7 @@ public class Simulation {
 
     public void deleteAll() {
         objects.clear();
+        unfocus();
     }
 
     public SnapShot makeSnapShot(String name) {
