@@ -85,6 +85,13 @@ public abstract class GravityObject implements Destroyable, Serializable, Clonea
         return getCenter().distance(x, y) < getRadius();
     }
     public abstract GravityObject clone();
+    public Collider getCollider() {
+        return collider;
+    }
+
+    public void setCollider(Collider collider) {
+        this.collider = collider;
+    }
 
     @Override
     public String toString() {

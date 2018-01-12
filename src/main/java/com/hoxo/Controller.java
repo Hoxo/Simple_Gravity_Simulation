@@ -149,17 +149,18 @@ public class Controller {
         delta = new SimpleDoubleProperty(1);
         isOn = new SimpleBooleanProperty(false);
         timer = new AnimationTimer() {
-            long time = 0;
+            double time = 0;
 
             @Override
             public void handle(long now) {
                 label.setText(simulation.getObjects().size() + "");
-                state.setText("Время: " + time);
+                state.setText("Время: " + ((long)time));
                 time += delta.get();
                 if (simulation.hasFocused())
                     setCenterTo(simulation.getFocused().getCenter());
                 simulation.tick(delta.get());
                 redraw(simulation.getObjects());
+                System.out.println(simulation.summaryImpulse().length());
             }
         };
         simulation = new Simulation(new SimpleGravityObjectFactory());
@@ -174,7 +175,6 @@ public class Controller {
     }
 
     public void initialize() {
-
         canvas.getParent().setOnKeyPressed(this::handleKeyEvent);
         readSnapShots();
         deltaSlider.setMin(-2);

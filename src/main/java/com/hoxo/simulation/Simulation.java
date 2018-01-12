@@ -13,8 +13,8 @@ public class Simulation {
     private List<GravityObject> lost = new LinkedList<>();
     private GravityObject focused;
 
-    private static final int        LIMIT_RANGE = 100000;
-    private static final int        CALCULATED_PATH_LENGTH = 1000;
+    private static final int LIMIT_RANGE = 100000;
+    private static final int CALCULATED_PATH_LENGTH = 1000;
 
 
 
@@ -95,18 +95,20 @@ public class Simulation {
 //        destroyLostObjects();
         addOutOfGravitySystemsObjects();
 //        calculateInteractions();
-        cleanup();
         if (delta > 0) {
-            recalculateAllAccelerationVectors();
-            calculateInteractions();
-            recalculateAllVelocityVectors(delta);
+            doCalculations(delta);
             moveAll(delta);
         } else {
             moveAll(delta);
-            recalculateAllAccelerationVectors();
-            calculateInteractions();
-            recalculateAllVelocityVectors(delta);
+            doCalculations(delta);
         }
+    }
+
+    private void doCalculations(double delta) {
+        calculateInteractions();
+        cleanup();
+        recalculateAllAccelerationVectors();
+        recalculateAllVelocityVectors(delta);
     }
 
     private void moveAll(double delta) {
@@ -164,7 +166,16 @@ public class Simulation {
         for (GravityObject object : objects) {
             v = object.getVelocity().length();
             m = object.getMass();
-            e += m * v * v;
+            e += m * v * v / 2;
+            double sx, sy, sm = sy = sx = 0;
+            for (GravityObject o2 : objects)
+                if (o2 != object) {
+                    sx += o2.getCenter().x * o2.getMass();
+                    sy += o2.getCenter().y * o2.getMass();
+                    sm += o2.getMass();
+                }
+            Point com = new Point(sx / sm, sy / sm);
+            e += - Constants.G * m * sm / object.getCenter().distance(com);
         }
         return e;
     }
