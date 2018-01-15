@@ -78,7 +78,13 @@ public abstract class GravityObject implements Destroyable, Serializable, Clonea
         getVelocity().x += getAcceleration().x * deltaT;
         getVelocity().y += getAcceleration().y * deltaT;
     }
-    public abstract void recalculateAccelerationVector(Collection<? extends GravityObject> objects);
+
+    public void resetAcceleration() {
+        getAcceleration().x = 0;
+        getAcceleration().y = 0;
+    }
+
+    public abstract void addAccelerationVector(Collection<? extends GravityObject> objects);
     public abstract boolean collideWith(GravityObject object);
     public abstract void setTrailLength(int length);
     public boolean containsPoint(double x, double y) {

@@ -33,7 +33,6 @@ public class SimpleGravityObject extends GravityObject {
         this.radius = radius;
         collider = Colliders.simpleGravityObjectCollider();
 //        collider = Colliders.repulsiveCollider();
-
     }
 
     public SimpleGravityObject() {
@@ -108,9 +107,7 @@ public class SimpleGravityObject extends GravityObject {
     }
 
     @Override
-    public void recalculateAccelerationVector(Collection<? extends GravityObject> objects) {
-        acceleration.x = 0;
-        acceleration.y = 0;
+    public void addAccelerationVector(Collection<? extends GravityObject> objects) {
         for (GravityObject object : objects)
             if (object != this && !object.isDestroyed())
                 acceleration.add(accelerationVectorTo(object));
@@ -145,7 +142,7 @@ public class SimpleGravityObject extends GravityObject {
         }
 
         @Override
-        public void recalculateAccelerationVector(Collection<? extends GravityObject> objects) {}
+        public void addAccelerationVector(Collection<? extends GravityObject> objects) {}
 
         @Override
         public Vector2D getVelocity() {

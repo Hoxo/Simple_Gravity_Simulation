@@ -160,7 +160,6 @@ public class Controller {
                     setCenterTo(simulation.getFocused().getCenter());
                 simulation.tick(delta.get());
                 redraw(simulation.getObjects());
-                System.out.println(simulation.summaryImpulse().length());
             }
         };
         simulation = new Simulation(new SimpleGravityObjectFactory());
@@ -168,9 +167,10 @@ public class Controller {
     }
 
     private void experiment() {
-        double x0 = 0, y0 = 0, k = 10000;
-        for (int i = 0; i < 10; i++) {
-            simulation.add(new SimpleGravityObject(x0 + Math.random() * k, y0 + Math.random() * k, Vector2D.nullVector(), 10, 10000));
+        double w, h = w = 1000;
+        int count = 100;
+        for (int i = 0; i < count; i++) {
+            simulation.addGravityObject(Math.random()*w, Math.random()*h, Vector2D.nullVector(), 10);
         }
     }
 
@@ -279,6 +279,7 @@ public class Controller {
     }
 
     private void readSnapShots() {
+
         try (ObjectInputStream inputStream = new ObjectInputStream(new FileInputStream(examplesFilename))){
             for (;;) {
                 SnapShot snapShot = (SnapShot) inputStream.readObject();
@@ -414,12 +415,14 @@ public class Controller {
 
     @FXML
     private void dump() {
-        System.out.println("_______________DUMP_______________");
+        System.out.println("_______________INFO_______________");
         int i = 1;
         for (GravityObject o : simulation.getObjects()) {
             System.out.println("#" + i++);
             System.out.println(o);
         }
+        System.out.println("IMPULSE: " + simulation.summaryImpulse());
+        System.out.println("CENTER OF MASS: " + simulation.centerOfMass());
     }
 
     @FXML
@@ -437,6 +440,7 @@ public class Controller {
     }
 
     public void saveAllTemplates() {
+
         try (ObjectOutputStream outputStream = new ObjectOutputStream(new FileOutputStream(examplesFilename))) {
             for (SnapShot snapShot : snapShots) {
                 outputStream.writeObject(snapShot);

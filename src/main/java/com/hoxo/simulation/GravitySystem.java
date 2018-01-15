@@ -123,9 +123,7 @@ public class GravitySystem extends GravityObject {
     }
 
     @Override
-    public void recalculateAccelerationVector(Collection<? extends GravityObject> objects) {
-        acceleration.x = 0;
-        acceleration.y = 0;
+    public void addAccelerationVector(Collection<? extends GravityObject> objects) {
         for (GravityObject object : objects)
             if (object != this && !object.isDestroyed())
                     acceleration.add(accelerationVectorTo(object));
@@ -177,7 +175,7 @@ public class GravitySystem extends GravityObject {
         for (GravityObject object : objects)
             object.interactWith(objects);
         for (GravityObject object : objects) {
-            object.recalculateAccelerationVector(objects);
+            object.addAccelerationVector(objects);
             object.recalculateVelocityVector(deltaT);
         }
         for (GravityObject object : objects) {

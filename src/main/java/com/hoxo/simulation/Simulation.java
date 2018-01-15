@@ -105,10 +105,17 @@ public class Simulation {
     }
 
     private void doCalculations(double delta) {
+        resetAccelerations();
         calculateInteractions();
         cleanup();
         recalculateAllAccelerationVectors();
         recalculateAllVelocityVectors(delta);
+    }
+
+    public void resetAccelerations() {
+        for (GravityObject object : objects) {
+            object.resetAcceleration();
+        }
     }
 
     private void moveAll(double delta) {
@@ -129,7 +136,7 @@ public class Simulation {
 
     private void recalculateAllAccelerationVectors() {
         for (GravityObject object : objects) {
-            object.recalculateAccelerationVector(objects);
+            object.addAccelerationVector(objects);
         }
     }
 
