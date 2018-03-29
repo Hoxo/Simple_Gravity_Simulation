@@ -2,6 +2,9 @@ package com.hoxo.simulation;
 
 import com.hoxo.geometric.Point;
 import com.hoxo.geometric.Vector2D;
+import com.hoxo.simulation.collider.Collider;
+import com.hoxo.simulation.collider.Colliders;
+import com.hoxo.simulation.collider.NullCollider;
 
 import java.util.Collection;
 
@@ -31,24 +34,22 @@ public class SimpleGravityObject extends GravityObject {
         this.velocity = velocity;
         this.acceleration = Vector2D.nullVector();
         this.radius = radius;
-        collider = Colliders.simpleGravityObjectCollider();
-//        collider = Colliders.repulsiveCollider();
+    }
+
+    public SimpleGravityObject(double x, double y, Vector2D velocity, double radius, double mass, Collider collider) {
+        this(x, y, velocity, radius, mass);
+        this.collider = collider;
     }
 
     public SimpleGravityObject() {
         trail = new Trail(1000);
-        collider = Colliders.simpleGravityObjectCollider();
+        collider = new NullCollider();
     }
 
     @Override
     public GravityObject clone() {
         SimpleGravityObject sgo = new SimpleGravityObject(center.x, center.y,new Vector2D(velocity.x,velocity.y),radius,mass);
         sgo.name = name;
-//        System.out.println(trail);
-//        sgo.trail = new Trail(trail.getLength());
-//        for (Point point : trail) {
-//            sgo.trail.addPoint(point);
-//        }
         return sgo;
     }
 
@@ -68,13 +69,38 @@ public class SimpleGravityObject extends GravityObject {
     }
 
     @Override
+    public void setVelocity(Vector2D velocity) {
+        this.velocity = velocity;
+    }
+
+    @Override
     public Vector2D getAcceleration() {
         return acceleration;
     }
 
     @Override
+    public void setMass(double mass) {
+        this.mass = mass;
+    }
+
+    @Override
+    public void setCenter(Point center) {
+        this.center = new Point(center);
+    }
+
+    @Override
+    public void setAcceleration(Vector2D acceleration) {
+        this.acceleration = new Vector2D(acceleration);
+    }
+
+    @Override
     public double getRadius() {
         return radius;
+    }
+
+    @Override
+    public void setRadius(double radius) {
+        this.radius = radius;
     }
 
     @Override
@@ -131,14 +157,13 @@ public class SimpleGravityObject extends GravityObject {
     public static class Static extends SimpleGravityObject {
 
         Static() {
-            collider = Colliders.staticGravityObjectCollider();
-            trail = new Trail.Null();
+            collider = new NullCollider();
+            trail = new Trail.Empty();
         }
 
         public Static(double x, double y, double radius, double mass) {
             super(x, y, Vector2D.nullVector(), radius, mass);
-            collider = Colliders.staticGravityObjectCollider();
-            trail = new Trail.Null();
+            trail = new Trail.Empty();
         }
 
         @Override

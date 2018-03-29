@@ -5,12 +5,17 @@ import java.io.Serializable;
 /**
  * Created by Hoxton on 06.09.2017.
  */
-public class Vector2D implements Serializable {
+public class Vector2D implements Serializable, Cloneable {
     public double x, y;
 
     public Vector2D(double x, double y) {
         this.x = x;
         this.y = y;
+    }
+
+    public Vector2D(Vector2D vector2D) {
+        x = vector2D.x;
+        y = vector2D.y;
     }
 
     public Vector2D(com.hoxo.geometric.Point point) {
@@ -31,6 +36,20 @@ public class Vector2D implements Serializable {
         x -= vector.x;
         y -= vector.y;
     }
+
+    public void rotateClockwise(double rad) {
+        double x0, y0;
+        x0 = x * Math.cos(rad) - y * Math.sin(rad);
+        y0 = x * Math.sin(rad) + y * Math.cos(rad);
+        x = x0;
+        y = y0;
+
+    }
+
+    public void rotateCounterClockwise(double rad) {
+        rotateClockwise(-rad);
+    }
+
 
     public strictfp double angleWith(Vector2D vector) {
         return Math.abs(getAngle() - vector.getAngle());

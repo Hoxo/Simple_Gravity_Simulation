@@ -60,7 +60,7 @@ public class Trail implements Iterable<Point> {
         return trail.spliterator();
     }
 
-    public static class Null extends Trail {
+    public static class Empty extends Trail {
 
         @Override
         public void addPoint(double x, double y) {

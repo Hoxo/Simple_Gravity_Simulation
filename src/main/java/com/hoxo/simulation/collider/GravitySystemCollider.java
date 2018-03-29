@@ -1,4 +1,8 @@
-package com.hoxo.simulation;
+package com.hoxo.simulation.collider;
+
+import com.hoxo.simulation.GravityObject;
+import com.hoxo.simulation.GravitySystem;
+import com.hoxo.simulation.SimpleGravityObject;
 
 public class GravitySystemCollider implements Collider {
     @Override

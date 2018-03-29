@@ -8,8 +8,8 @@
 <?import javafx.scene.control.Menu?>
 <?import javafx.scene.control.MenuBar?>
 <?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.RadioMenuItem?>
 <?import javafx.scene.control.Slider?>
-<?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.VBox?>
@@ -23,17 +23,16 @@
               <MenuItem mnemonicParsing="false" text="Close" />
             </items>
           </Menu>
-          <Menu mnemonicParsing="false" text="Edit">
-            <items>
-              <MenuItem mnemonicParsing="false" onAction="#deleteAll" text="Delete" />
-            </items>
-          </Menu>
           <Menu mnemonicParsing="false" text="Help">
             <items>
               <MenuItem mnemonicParsing="false" text="About" />
             </items>
           </Menu>
-            <Menu fx:id="templates" mnemonicParsing="false" text="Шаблоны" />
+            <Menu mnemonicParsing="false" text="View">
+               <items>
+                  <RadioMenuItem fx:id="isVectorsDisplayed" mnemonicParsing="false" text="Отображать векторы" />
+               </items>
+            </Menu>
         </menus>
       </MenuBar>
    </top>
@@ -58,12 +57,9 @@
                   <Label fx:id="radiusLabel" />
                   <Button mnemonicParsing="false" onAction="#deleteLast" text="Удалить последний" />
                   <Button mnemonicParsing="false" onAction="#deleteAll" text="Удалить все" />
-                  <Label fx:id="deltaLabel" text="Time: " />
+                  <Label fx:id="deltaLabel" text="deltaT" />
                   <Slider fx:id="deltaSlider" blockIncrement="0.05" focusTraversable="false" max="4.0" value="0.5" />
                   <Button mnemonicParsing="false" onAction="#dump" text="INFO" />
-                  <Label text="Название:" />
-                  <TextField fx:id="nameField" prefHeight="25.0" prefWidth="121.0" />
-                  <Button mnemonicParsing="false" onAction="#saveTemplate" text="Сохранить конфигурацию" />
                </children>
             </VBox>
             <Canvas fx:id="canvas" height="500.0" style="-fx-border-color: #333333;" width="717.0" AnchorPane.bottomAnchor="10.0" AnchorPane.leftAnchor="10.0" AnchorPane.rightAnchor="182.0" AnchorPane.topAnchor="10.0" />

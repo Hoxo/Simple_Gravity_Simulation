@@ -2,6 +2,7 @@ package com.hoxo.simulation;
 
 import com.hoxo.geometric.Point;
 import com.hoxo.geometric.Vector2D;
+import com.hoxo.simulation.collider.Collider;
 
 import java.io.Serializable;
 import java.util.Collection;
@@ -12,17 +13,23 @@ public abstract class GravityObject implements Destroyable, Serializable, Clonea
     protected transient Collider collider;
 
     public abstract double getMass();
+    public abstract void setMass(double mass);
     public abstract Point getCenter();
+    public abstract void setCenter(Point center);
+    public abstract double getRadius();
+    public abstract void setRadius(double radius);
     public abstract Vector2D getVelocity();
+    public abstract void setVelocity(Vector2D velocity);
     public abstract Vector2D getAcceleration();
+    public abstract void setAcceleration(Vector2D acceleration);
     public abstract Trail getTrail();
-
-    public void setName(String name) {
-        this.name = name;
-    }
 
     public String getName() {
         return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     @Override
@@ -33,7 +40,6 @@ public abstract class GravityObject implements Destroyable, Serializable, Clonea
     public boolean isDestroyed() {
         return destroyed;
     }
-    public abstract double getRadius();
     public abstract int getTrailLength();
     public abstract void moveTo(double x, double y);
     public abstract void move(double deltaT);
@@ -62,12 +68,12 @@ public abstract class GravityObject implements Destroyable, Serializable, Clonea
                 }
     }
 
-    public void setSatellite(GravityObject object, double apocentre, double pericentre) {
+    public void setSatellite(GravityObject object, double apocentre, double pericentre, double rad) {
         double ellipseA = (apocentre + getRadius() * 2 + pericentre)/2,
                 r = apocentre + getRadius(), mu = Constants.G * getMass(),
                 v = Math.sqrt(mu * (2/r - 1/ellipseA));
 
-        object.moveTo(getCenter().x, getCenter().y  + getRadius() + apocentre);
+        object.moveTo(getCenter().x, getCenter().y  + r);
         object.getVelocity().x = 1;
         object.getVelocity().y = 0;
         object.getVelocity().setLength(v);
@@ -94,7 +100,6 @@ public abstract class GravityObject implements Destroyable, Serializable, Clonea
     public Collider getCollider() {
         return collider;
     }
-
     public void setCollider(Collider collider) {
         this.collider = collider;
     }

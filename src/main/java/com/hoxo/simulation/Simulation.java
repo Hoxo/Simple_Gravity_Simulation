@@ -3,8 +3,12 @@ package com.hoxo.simulation;
 import com.hoxo.geometric.Point;
 import com.hoxo.geometric.Vector2D;
 
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Properties;
 
 public class Simulation {
     private LinkedList<GravityObject> objects = new LinkedList<>();
@@ -13,13 +17,34 @@ public class Simulation {
     private List<GravityObject> lost = new LinkedList<>();
     private GravityObject focused;
 
-    private static final int LIMIT_RANGE = 100000;
-    private static final int CALCULATED_PATH_LENGTH = 1000;
+    private static int LIMIT_RANGE;
+    private static int CALCULATED_PATH_LENGTH;
 
-
+    static {
+        loadConfig();
+    }
 
     public Simulation(GravityObjectFactory factory) {
         this.factory = factory;
+    }
+
+    private static void loadConfig() {
+        try {
+            Properties properties = new Properties();
+            properties.load(new FileReader(new File("config/simulation.cfg")));
+            String lr = properties.getProperty("limit_range","-1");
+            LIMIT_RANGE = Integer.parseInt(lr);
+            String cpl = properties.getProperty("calculated_path_length","1000");
+            CALCULATED_PATH_LENGTH = Integer.parseInt(cpl);
+        } catch (IOException e) {
+            e.printStackTrace();
+            setDefaultValues();
+        }
+    }
+
+    private static void setDefaultValues() {
+        LIMIT_RANGE = -1;
+        CALCULATED_PATH_LENGTH = 1000;
     }
 
     public void addGravityObject(double x, double y, Vector2D v, int r) {
@@ -92,9 +117,7 @@ public class Simulation {
     }
 
     public void tick(double delta) {
-//        destroyLostObjects();
         addOutOfGravitySystemsObjects();
-//        calculateInteractions();
         if (delta > 0) {
             doCalculations(delta);
             moveAll(delta);
@@ -168,25 +191,6 @@ public class Simulation {
         return sum;
     }
 
-    public double summaryEnergy() {
-        double e = 0, v, m;
-        for (GravityObject object : objects) {
-            v = object.getVelocity().length();
-            m = object.getMass();
-            e += m * v * v / 2;
-            double sx, sy, sm = sy = sx = 0;
-            for (GravityObject o2 : objects)
-                if (o2 != object) {
-                    sx += o2.getCenter().x * o2.getMass();
-                    sy += o2.getCenter().y * o2.getMass();
-                    sm += o2.getMass();
-                }
-            Point com = new Point(sx / sm, sy / sm);
-            e += - Constants.G * m * sm / object.getCenter().distance(com);
-        }
-        return e;
-    }
-
     public Point centerOfMass() {
         Point p = new Point(0,0);
         double xmsum = 0, ymsum = 0, mass = 0;
@@ -204,7 +208,6 @@ public class Simulation {
         objects.removeIf(object -> object.getCenter().distance(0,0) > LIMIT_RANGE);
     }
 
-    //TODO Timer не простит
     public void deleteLast() {
         try {
             objects.removeLast();

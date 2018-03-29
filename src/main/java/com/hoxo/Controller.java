@@ -3,6 +3,9 @@ package com.hoxo;
 import com.hoxo.geometric.Point;
 import com.hoxo.geometric.Vector2D;
 import com.hoxo.simulation.*;
+import com.hoxo.simulation.collider.Collider;
+import com.hoxo.simulation.collider.RepulsiveCollider;
+import com.hoxo.simulation.collider.SGOCollider;
 import javafx.animation.AnimationTimer;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -20,7 +23,6 @@ import javafx.scene.text.Font;
 import javafx.scene.transform.Affine;
 import javafx.util.StringConverter;
 
-import java.io.*;
 import java.util.*;
 
 public class Controller {
@@ -42,8 +44,6 @@ public class Controller {
     @FXML
     private CheckBox showTrails;
     @FXML
-    private Menu templates;
-    @FXML
     private Label radiusLabel;
     @FXML
     private Label coordinates;
@@ -52,15 +52,13 @@ public class Controller {
     @FXML
     private Label deltaLabel;
     @FXML
-    private TextField nameField;
+    private RadioMenuItem isVectorsDisplayed;
 
-    private static final double VELOCITY_SCALE = 0.02;
-    private static final double SHIFT_VALUE = 10;
+    private static final double VELOCITY_SCALE  = 0.02;
+    private static final double SHIFT_VALUE     = 10;
     private static final double INC_SCALE_VALUE = 1.1;
     private static final double DEC_SCALE_VALUE = 1/INC_SCALE_VALUE;
-    private static final String examplesFilename = "examples.txt";
 
-    private List<SnapShot> snapShots = new LinkedList<>();
     private Map<KeyCode, Runnable> keyCommandMap = new HashMap<>();
     private MouseEventAdapter mouseEventAdapter;
     private volatile SimpleDoubleProperty delta;
@@ -85,7 +83,7 @@ public class Controller {
                         if (simulation.hasFocused())
                             startPosition = getCursorPosition(startPositionEvent);
                         currentVelocity = getVelocityVector(event);
-                        calculateObjectPath(startPosition, currentVelocity);
+//                        calculateObjectPath(startPosition, currentVelocity);
                     }
                     else
                         if (!simulation.hasFocused()) {
@@ -162,21 +160,41 @@ public class Controller {
                 redraw(simulation.getObjects());
             }
         };
-        simulation = new Simulation(new SimpleGravityObjectFactory());
-        experiment();
+        simulation = new Simulation(new SimpleGravityObjectFactory(new RepulsiveCollider()));
     }
 
     private void experiment() {
-        double w, h = w = 1000;
-        int count = 100;
-        for (int i = 0; i < count; i++) {
-            simulation.addGravityObject(Math.random()*w, Math.random()*h, Vector2D.nullVector(), 10);
+        double w, h = w = 7000, x0 = 0, y0 = 0;
+        int amount = 750;
+        LinkedList<SimpleGravityObject> list = new LinkedList<>();
+        Collider collider = new SGOCollider();
+        for (int i = 0; i < amount; i++) {
+            list.addLast(new SimpleGravityObject(x0 - w / 2 + Math.random() * w, y0 - h / 2 + Math.random() * h,
+                    Vector2D.nullVector(), 30, 1000, collider));
+            simulation.add(list.getLast());
         }
+        SimpleGravityObject wh = new SimpleGravityObject(0, 0, Vector2D.nullVector(), 100, 1000000, collider);
+        for (SimpleGravityObject object : list) {
+            double distance = object.range(wh);
+            double ellipseA = (distance*2 + wh.getRadius() * 2)/2,
+                    mu = Constants.G * wh.getMass(),
+                    v = Math.sqrt(mu * (2/distance - 1/ellipseA));
+            setVelocityRelatively(wh, object, v, Math.PI /2);
+        }
+        simulation.add(wh);
+
+    }
+
+    private void setVelocityRelatively(GravityObject center, GravityObject sat, double v, double rad) {
+        Vector2D vlc = new Vector2D(sat.getCenter(), center.getCenter());
+        vlc.setLength(v);
+        vlc.rotateCounterClockwise(rad);
+        vlc.add(center.getVelocity());
+        sat.setVelocity(vlc);
     }
 
     public void initialize() {
         canvas.getParent().setOnKeyPressed(this::handleKeyEvent);
-        readSnapShots();
         deltaSlider.setMin(-2);
         deltaSlider.setMax(2);
         deltaSlider.setBlockIncrement(0.05);
@@ -184,7 +202,7 @@ public class Controller {
         isCollide.setOnAction(event -> deltaSlider.setValue(-deltaSlider.getValue()));
         deltaSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
             Formatter formatter = new Formatter(Locale.ENGLISH);
-            String s = formatter.format("Time: %.2f",newValue).toString();
+            String s = formatter.format("deltaT: %.2f",newValue.doubleValue()).toString();
             deltaLabel.setText(s);
         });
         deltaSlider.setValue(1);
@@ -219,6 +237,7 @@ public class Controller {
         });
         handleStart();
         updateTransformInfo();
+        experiment();
     }
 
     private void handleKeyEvent(KeyEvent event) {
@@ -278,37 +297,16 @@ public class Controller {
         coordinates.setText(formatter.format("Координаты:\n%.3f %.3f",-x + canvas.getWidth()/scale/2,-y + canvas.getHeight()/scale/2).toString());
     }
 
-    private void readSnapShots() {
-
-        try (ObjectInputStream inputStream = new ObjectInputStream(new FileInputStream(examplesFilename))){
-            for (;;) {
-                SnapShot snapShot = (SnapShot) inputStream.readObject();
-                snapShots.add(snapShot);
-                addMenuItem(snapShot);
-            }
-        } catch (EOFException e) {
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void addMenuItem(SnapShot snapShot) {
-        MenuItem item = new MenuItem(snapShot.name);
-        item.setOnAction(event -> simulation.restoreSnapShot(snapShot));
-        templates.getItems().add(item);
-    }
-
-    private static final Color TRAIL_COLOR = Color.WHITE;
-    private static final Color SELECTED_TRAIL_COLOR = Color.GREEN;
-    private static final Color CALCULATED_TRAIL_COLOR = Color.PURPLE;
-    private static final Color STATIC_OBJECT_COLOR = Color.rgb(200,200,0);
-    private static final Color SIMPLE_OBJECT_COLOR = Color.STEELBLUE;
+    private static final Color TRAIL_COLOR              = Color.WHITE;
+    private static final Color SELECTED_TRAIL_COLOR     = Color.GREEN;
+    private static final Color CALCULATED_TRAIL_COLOR   = Color.PURPLE;
+    private static final Color STATIC_OBJECT_COLOR      = Color.rgb(200,200,0);
+    private static final Color SIMPLE_OBJECT_COLOR      = Color.STEELBLUE;
 
     private void redraw(Collection<? extends GravityObject> collection) {
         GraphicsContext gc = canvas.getGraphicsContext2D();
         Affine af = gc.getTransform();
-        Point begin = beginOfCoordinates();
+        Point begin = getNewOrigin();
         gc.clearRect(begin.x,begin.y,canvas.getWidth()/af.getMxx(),canvas.getHeight()/af.getMyy());
         gc.setFill(Color.BLACK);
         gc.fillRect(-af.getTx()/af.getMxx(),-af.getTy()/af.getMyy(),canvas.getWidth()/af.getMxx(),canvas.getHeight()/af.getMyy());
@@ -330,7 +328,7 @@ public class Controller {
         gc.fillOval(p.x - 1/scale, p.y - 1/scale, 1/scale, 1/scale);
     }
 
-    private Point beginOfCoordinates() {
+    private Point getNewOrigin() {
         Affine af = canvas.getGraphicsContext2D().getTransform();
         return new Point(-af.getTx()/af.getMxx(),-af.getTy()/af.getMyy());
     }
@@ -352,9 +350,11 @@ public class Controller {
                 else {
                     gc.setFill(SIMPLE_OBJECT_COLOR);
                     gc.fillOval(point.x - currentRadius, point.y - currentRadius, 2 * currentRadius, 2 * currentRadius);
-                    double scale = 100;
-                    gc.strokeLine(obj.getCenter().x, obj.getCenter().y,
-                            obj.getCenter().x + obj.getAcceleration().x * scale, obj.getCenter().y + obj.getAcceleration().y * scale);
+                    if (isVectorsDisplayed.isSelected()) {
+                        double scale = 100;
+                        gc.strokeLine(obj.getCenter().x, obj.getCenter().y,
+                                obj.getCenter().x + obj.getAcceleration().x * scale, obj.getCenter().y + obj.getAcceleration().y * scale);
+                    }
                 }
                 gc.setFont(Font.font(8));
                 gc.fillText(obj.getName(),(obj.getCenter().x + obj.getRadius() + 5), obj.getCenter().y);
@@ -425,29 +425,4 @@ public class Controller {
         System.out.println("CENTER OF MASS: " + simulation.centerOfMass());
     }
 
-    @FXML
-    private void saveTemplate() {
-        if (nameField.getText().isEmpty())
-            System.out.println("Введите имя!");
-        else {
-            for (MenuItem menuItem : templates.getItems())
-                if (menuItem.getText().equals(nameField.getText()))
-                    return;
-            SnapShot snapShot = simulation.makeSnapShot(nameField.getText());
-            snapShots.add(snapShot);
-            addMenuItem(snapShot);
-        }
-    }
-
-    public void saveAllTemplates() {
-
-        try (ObjectOutputStream outputStream = new ObjectOutputStream(new FileOutputStream(examplesFilename))) {
-            for (SnapShot snapShot : snapShots) {
-                outputStream.writeObject(snapShot);
-                System.out.println(snapShot);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 }

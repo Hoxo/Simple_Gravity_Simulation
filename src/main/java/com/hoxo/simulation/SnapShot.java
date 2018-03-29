@@ -20,6 +20,6 @@ public class SnapShot implements Serializable {
 
     @Override
     public String toString() {
-        return "Snapshot " + objects.toString();
+        return "SnapShot " + objects.toString();
     }
 }

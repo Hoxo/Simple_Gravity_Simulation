@@ -1,6 +1,11 @@
-package com.hoxo.simulation;
+package com.hoxo.simulation.collider;
 
 import com.hoxo.geometric.Point;
+import com.hoxo.geometric.Vector2D;
+import com.hoxo.simulation.GravityObject;
+import com.hoxo.simulation.GravitySystem;
+import com.hoxo.simulation.SimpleGravityObject;
+import com.hoxo.simulation.collider.Collider;
 
 public class SGOCollider implements Collider {
 
@@ -26,12 +31,12 @@ public class SGOCollider implements Collider {
                     sgo = ((SimpleGravityObject) o2);
                     o1.destroy();
                 }
-                sgo.velocity.x = _x;
-                sgo.velocity.y = _y;
-                sgo.center = center;
-                double density = sgo.mass / (Math.pow(sgo.radius, 2));
-                sgo.mass = massSum;
-                sgo.radius = Math.sqrt(massSum / density);
+                sgo.setVelocity(new Vector2D(_x, _y));
+                sgo.setCenter(center);
+                double density = Math.max(o1.getMass() / (Math.pow(o1.getRadius(), 2)),
+                        o2.getMass() / (Math.pow(o2.getRadius(), 2)));
+                sgo.setMass(massSum);
+                sgo.setRadius(Math.sqrt(massSum / density));
             }
         }
         if (o2 instanceof GravitySystem)

@@ -5,7 +5,7 @@ import java.io.Serializable;
 /**
  * Created by Hoxton on 09.09.2017.
  */
-public class Point implements Serializable {
+public class Point implements Serializable, Cloneable {
     public double x,y;
     public Point(double x, double y) {
         this.x = x;
@@ -51,6 +51,11 @@ public class Point implements Serializable {
 
         if (x != point.x) return false;
         return y != point.y;
+    }
+
+    @Override
+    public Point clone() throws CloneNotSupportedException {
+        return new Point(x, y);
     }
 
     @Override

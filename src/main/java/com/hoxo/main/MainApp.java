@@ -23,10 +23,10 @@ public class MainApp extends Application {
 
     private void initUI(Stage primaryStage) throws Exception {
         FXMLLoader loader = new FXMLLoader(getClass().getResource("MainApp.fxml"));
-//        Parent root = FXMLLoader.load(getClass().getResource("MainApp.fxml"));
         Parent root = loader.load();
         Scene scene = new Scene(root);
         controller = loader.getController();
+        primaryStage.setTitle("Simulation");
         primaryStage.setScene(scene);
         primaryStage.sizeToScene();
         primaryStage.setResizable(false);
@@ -34,6 +34,5 @@ public class MainApp extends Application {
 
     @Override
     public void stop() throws Exception {
-        controller.saveAllTemplates();
     }
 }
